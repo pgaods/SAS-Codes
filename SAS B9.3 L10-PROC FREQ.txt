@@ -1,0 +1,147 @@
+/* SAS Base9.3 Lecture 10-PROC FREQ */
+
+
+
+/* This lecture studies how to use PROC FREQ to create summary reports and descriptive statistics. */
+
+/*
+  PROC FREQ is a simple version of PROC TABULATE, and it produces one-way and n-way frequency tables. One can use this 
+procedure to create cross-tabulation tables that summarize data for two or more categorical variables by showing the
+number of observations for each combination of variable values. There are many ways to tabulate the frequency distribution
+of the variables, and is considered an advanced topic. There are a lot of tricks that can involve creating tabulations. 
+We highly recommend using one-way frequency table which is always easy to be interpreted. By default, PROC FREQ creates 
+a one-way table with the frequency, percent, cumulative frequency, and cumulative percent of every value of all variables
+in the dataset. Meanwhile, PROC FREQ is a very good statistical tool to do categorical analysis. Agresti's textbooks have
+a very nice treatment (See NIU notes-Fall 2012-STAT574-Hosmane). PROC FREQ is the most powerful tool when it comes to 
+categorical analysis. We will omit a lot of details of the statistical analyses in this handout for the time being. A short 
+cautionary note here: PROC FREQ treats missing BY variable values like any other BY variable value. The missing values form 
+a separate BY group. In addition, If an observation has a missing value for a variable in a TABLES request, by default PROC 
+FREQ does not include that observation in the frequency or crosstabulation table. In the meantime, by default, PROC FREQ 
+does not include observations with missing values in the computation of percentages and statistics either. The procedure 
+displays the number of missing observations below each table. To include the missing values, one could use the MISSING option
+placed at the end of the TABLES statement. The MISSING option displays the missing levels in frequency and crosstabulation 
+tables and includes them in all calculations of percentages, tests, and measures. It's always a good practice to place the
+MISSING option in the TABLES statement in real world problems. 
+  
+  The general form of the PROC FREQ is given by the following:
+    PROC FREQ DATA= dataset-name;
+      TABLES var_1 var_2...var_n /options;
+      FORMAT var_1 format-of-var_1...var_n format-of-var_n;
+      EXACT stats-names(s);
+      Weight counts
+      OUTPUT OUT= output-dataset;
+    RUN;
+
+  We will first give an example of a one-way table. We will later study some simple cases of n-way table.  
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+/* this example is taken from Problem Agresti " An intro to categorical analysis "2.19(a) */
+PROC FORMAT;
+  VALUE Racefmt 1='White'
+                   0='Black';
+  VALUE Parfmt -1='Democrats'
+                     0='Independent'
+	                 1='Republican';
+RUN;
+DATA Prb2_19;
+  INPUT Race Party Count;
+  CARDS;
+1 -1 871
+1  0 444
+1  1 873
+0 -1 302
+0  0 80
+0  1 43
+;
+PROC SORT DATA = Prb2_19; 
+   BY Race DESCENDING Party;
+RUN;
+PROC PRINT DATA=Prb2_19;
+RUN;
+PROC FREQ DATA = Prb2_19;
+   TABLES Race Party / MISSING;  
+     /* the MISSING option treats missing values as a valid nonmissing level for all TABLES variables */
+   FORMAT Race Racefmt. Party Parfmt.;
+   TITLE 'Agresti Problem2.19 Descriptive Results-One way';
+RUN;
+PROC FREQ DATA = Prb2_19;
+   TABLES Race*Party; 
+     /* the cross tabulation is done through the use of the asterisk sign */
+     /* to do n-way crosstabulation, one can keep using the asterisk sign, which produces a series of two-way tables */
+   FORMAT Race Racefmt. Party Parfmt.;
+   TITLE 'Agresti Problem2.19 Descriptive Results-Two way/crosstabulation';
+RUN;
+PROC FREQ DATA = Prb2_19 ORDER = DATA; /* the ORDER statement specifies the order for reporting variable values */
+   TABLES Race*Party / CHISQ RELRISK NOCUM;  
+     /* CHISQ requests chi-square tests and measures based on chi-square */ 
+     /*  RELRISK requests relative risk measures for 2-by-2 tables */
+     /* NOCUM suppresses the display of cumualtive frequencies and cumulative percentages in one-way frequency tables */
+   FORMAT Race Racefmt. Party Parfmt.;
+   EXACT PCHI FISHER;
+     /*the EXACT statement requests exact tests or confidence limits for the specified statistics */
+     /* the keywords PCHI FISHER and TREND are exact test statistics requested */
+   WEIGHT Count;
+     /* the WEIGHT statement names a numeric variable that provides a weight for each observation in the input dataset */
+   OUTPUT OUT=race_data CHISQ; 
+     /* the keyword CHISQ requests goodness-of-fit statistic in one way table */
+     /* it requests Pearson, likelihood-ratio, Fisher's exact tesst, and Cramer's V etc. for two-way tables */
+   TITLE 'Agresti Problem2.19 Statistical Analysis Results';
+RUN;
+
+/* 
+  Next, we mention a few things in formatting the table. Recall that in order to do n-way crosstabulation, one can keep using the
+asterisk sign, which produces a series of two-way tables. If we use the statement TABLES var1*var2*var3, then that means that var1 
+is the level, and var2 becomes the row while the column is var3 in the table, so that var2*var3 forms a two-way table. 
+*/
+PROC FORMAT;
+  VALUE Racefmt 1='White'
+                   0='Black';
+  VALUE Parfmt -1='Democrats'
+                     0='Independent'
+	                 1='Republican';
+  VALUE Genfmt 1='Male'
+                     0='Female';
+RUN;
+DATA elections;
+  INPUT Race Party Gender Count;
+  CARDS;
+1 -1 1 871
+1  0 1 444
+1  1 1 873
+0 -1 0 302
+0  0 0 80
+0  1 0 43
+;
+RUN;
+PROC FREQ DATA = elections;
+   TABLES Race*Party*Gender;    
+   FORMAT Race Racefmt. Party Parfmt. Gender Genfmt.;
+   TITLE 'Election Results-n-way Table';
+RUN;
+ODS TRACE ON;
+PROC FREQ DATA = elections;
+   TABLES Race*Party*Gender /CROSSLIST; 
+     /* the CROSSLIST keyword helps display crosstabulation tables in ODS column format
+     /* the table generated by CROSSLIST has a table definition allowing you to customize by using the TEMPLATE procedure */
+     /* we highly recommend using this option */
+   FORMAT Race Racefmt. Party Parfmt. Gender Genfmt.;
+   TITLE 'Election Results-n-way Table';
+RUN;
+ODS TRACE OFF; /* by using the ODS TRACE ON and ODS TRACE OFF statements, one can see the output created in the log */
+
+/*
+  Lastly, we discuss how to make the output look simple. There are two ways. One way to do that is to ust the option LIST followed
+by a slash just like how we added the keyword CROSSLIST in the TABLES statement. The othe way to go around about it is to suppress
+table information by adding a slash sign with any combination of the following options to the TABLES statement: NOFREQ, NOPERCENT, 
+NOROW, and NOCOLUMN.
+*/
+PROC FREQ DATA = elections;
+   TABLES Race*Party*Gender /LIST NOROW NOCOL; 
+     /* the CROSSLIST keyword helps display crosstabulation tables in ODS column format
+     /* the table generated by CROSSLIST has a table definition allowing you to customize by using the TEMPLATE procedure */
+     /* we highly recommend using this option */
+   FORMAT Race Racefmt. Party Parfmt. Gender Genfmt.;
+   TITLE 'Election Results-n-way Table';
+RUN;

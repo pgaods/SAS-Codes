@@ -1,0 +1,217 @@
+/* SAS Base9.3 Lecture 18-Reading Datasets IV. (Some Tricks) */
+
+
+
+/* This lecture studies some advanced techniques of data reading. */
+
+/*
+  We first study how to use the BY group processing to find the first and last observations in a group. Basically, after sorting 
+the data, one can use a BY statement after a SET statement in the DATA step. By doing so, the DATA step creates two temporary 
+variables for each BY variable: one is named FIRST.variable and the other is named LAST.variable. Their values are either 1 or 0.
+If the FIRST.variable=1, then it is for the first observation in a BY group. If FIRST.variable=0, then SAS tells us that it is for
+any other observation in a BY group. Similarly, If LAST.variable=1, then it is for the last observation in a BY group, and if 
+LAST.variable=0, then that's for any other observation in a BY group. Note that these temporary variables are available for DATA 
+step programming but are not added to the output dataset. To make them pop up in the dataset, simply use a new variable to define
+these two temporary variables. Note that in order to use the FIRST.variable or the LAST.variable trick, the data has to be sorted
+first and the BY statement must immediately follow the SET statement in the DATA step. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA gaogao; /* this is the first example */
+  INPUT ID gender $;
+  CARDS;
+01 M
+02 M
+03 M
+04 M
+05 F
+06 M
+07 F
+08 F
+;
+RUN;
+PROC SORT DATA=gaogao OUT=gaogao_;
+  BY gender;
+RUN;
+DATA gaogao1;
+  SET gaogao_;
+  BY gender;
+  IF FIRST.gender;
+RUN;
+DATA gaogao2;
+  SET gaogao_;
+  BY gender;
+  IF LAST.gender;
+run;
+PROC PRINT DATA=gaogao1;
+RUN;
+PROC PRINT DATA=gaogao2;
+RUN;
+DATA mentaldisorder; /* here is another example */
+ INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\mentaldisorder.txt';
+ INPUT ID $ Name $ RestHr MaxHr RecHr TimeMin TimeSec Tolerance $;
+RUN;
+DATA mentaldisorder;
+ SET mentaldisorder;
+ TotalTime=(TimeMin*60)+TimeSec;
+ ranking+1;
+ SumSec+TotalTime;
+ LABEL ranking='natural ranking';
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+PROC SORT DATA=mentaldisorder;
+  BY Name;
+RUN;
+DATA mentaldisorder (DROP= RestHr MaxHr TimeMin TimeSec);
+  SET mentaldisorder;
+  BY Name;
+  FirstName_Flag=First.Name; 
+  LastName_Flag=Last.Name;
+    /* if we do not define these two 'flag' variables above, SAS would not write out the temporary variables in the output */
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA USA; /* below is the last example */
+  INPUT Dept $ WageCategory $ WageRate;
+  CARDS;
+ADM20 S 3992.50
+ADM30 S 5092.34
+CAM10 S 1894.23
+CAM10 S 2345.22
+ADM30 H 134.24
+CAM10 S 2345.67
+ADM20 H 145.43
+ADM30 . .
+CAM20 H 234.45
+. . 234.87
+;
+RUN;
+PROC SORT DATA=USA OUT=temp;  
+  BY Dept;
+RUN;
+PROC PRINT DATA=temp;
+RUN;
+DATA company;
+  SET temp;
+  BY Dept;
+    IF WageCategory = 'S' THEN Yearly = WageRate*12;
+    ELSE IF WageCategory = 'H' THEN Yearly = WageRate*12;
+  IF First.Dept THEN Payroll=0;
+  Payroll+Yearly;
+RUN;
+PROC PRINT DATA=company;
+  BY Dept;
+  SUM Payroll;
+  WHERE Dept IN ('ADM20', 'ADM30', '');
+  FORMAT Payroll DOLLAR8.2;
+RUN;
+
+/* 
+  We shall now learn how to use the POINT= option in a SET statement to accesss observations directly by going straight to that 
+particular observation in a SAS dataset without having to process each observation that precedes it. To access observations 
+directly by their observation number, one needs to use the POINT= option in the SET statement. 
+  
+  The general form of a POINT= option statements are given by the following:
+    DATA dataset-name;
+      SET dataset-name POINT= temporary-numeric-variable;
+      ...
+      STOP;
+    RUN;
+  
+  Here the temporary numeric variable contains the observation number of that particular observation to be read. This variable 
+has to be given a value before the SET statement is executed. Generally, the POINT= option requires a STOP statement at the end
+of the DATA step to prevent continuous looping (infinitely). In the meantime, You cannot use POINT= with a BY statement, a WHERE
+statement, or a WHERE= option. In addition, you cannot use it with transport format data sets, data sets in sequential format on
+tape or disk, and SAS/ACCESS views or the SQL procedure views that read data from external files. In addition you cannot use the
+POINT= option with the KEY= option in a SET statement. You must supply the values of the POINT= temporary-numeric-variable. For 
+example, you are able to use the POINT= option as the index variable in some form of the DO statement, and the POINT= option is 
+available anywhere in the DATA step, but it is not added to any new SAS data set (thus temporary, as mentioned before). 
+*/
+DATA mentaldisorder;
+ INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\mentaldisorder.txt';
+ INPUT ID $ Name $ RestHr MaxHr RecHr TimeMin TimeSec Tolerance $;
+RUN;
+PROC SORT DATA=mentaldisorder;
+  BY Name;
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA lunatic;
+  Obsnum=4;
+  SET mentaldisorder (KEEP=ID Name MaxHr TimeSec Tolerance) POINT=Obsnum;
+  OUTPUT; /* without this OUTPUT statement, there'd be 0 observations in the dataset */
+  STOP; /* without this STOP statement at the end of the DATA step, SAS will freeze due to continuous looping */
+RUN;
+PROC PRINT DATA=lunatic;
+RUN;
+/*
+  A few remarks here: first, without the STOP statement, SAS cannot read an end-of-file indicator as it would if the file were 
+being read sequentially. Because reading an end-of-file indicator ends a DATA step automatically, failure to substitute another 
+means of ending the DATA step when you use POINT= can cause the DATA step to go into a continuous loop; second, note that the 
+OUTPUT statement is essential here. Without this statement, the program won't write any observations to output. Recall that the 
+DATA step writes observations to output at the end of the DATA step. However, in the above example, the STOP statement would 
+immediately stop processing before the end of the DATA step. In general, the POINT= option is used more frequently in combining
+datasets and DO statements, which we will learn in the future.
+*/
+
+/*
+  Finally, we learn how to detect the end of a dataset. Sometimes intead of reading specific observations, one might want to 
+determine when the last observation in an input dataset has been read, so that one can perform specific processing. To create a
+temporary numeric variable whose value is used to detect the last observation, one can use the END= option in the SET statement.
+
+  The general form of a POINT= option statements are given by the following:
+    DATA dataset-name;
+      SET dataset-name END= temporary-variable;
+      ...
+    RUN;
+
+  Here the temporary-variable contains an end-of-file marker. This variable, which is initialized to 0, is set to 1 when the SET
+statement reads the last observation of the dataset. This temporary will not be writen to the dataset, nor should it be used in 
+conjunction with the POINT= option. We now give a few examples. 
+*/
+DATA mentaldisorder; 
+ INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\mentaldisorder.txt';
+ INPUT ID $ Name $ RestHr MaxHr RecHr TimeMin TimeSec Tolerance $;
+RUN;
+DATA mentaldisorder;
+ SET mentaldisorder;
+ ranking+1;
+ LABEL ranking='natural ranking';
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA mental1; /* this is the first example */
+  SET mentaldisorder (DROP= RestHr MaxHr RecHr Tolerance) END=last;
+  TotalTime=(TimeMin*60)+TimeSec;
+  IF last;
+RUN;
+PROC PRINT DATA=mental1;
+RUN;
+DATA mental2; /* this is the second example */
+SET mentaldisorder (DROP= RestHr MaxHr RecHr Tolerance) END=last;
+  TotalTime=(TimeMin*60)+TimeSec;
+  IF (last) THEN DO;
+                    champion='highest';
+	                Full_Name='John Kennan';
+				 END;
+RUN;
+PROC PRINT DATA=mental2; 
+RUN;
+DATA mental3; /* this is the third example */
+SET mentaldisorder END=last;
+  IF (last) THEN DO;
+                    TotalTime=(TimeMin*60)+TimeSec;
+	                Full_Name='John Kennan';
+				 END;
+RUN;
+PROC PRINT DATA=mental3; 
+RUN;
+
+  
+
+
+
+
+

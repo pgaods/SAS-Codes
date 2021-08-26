@@ -1,0 +1,120 @@
+
+/* SAS Base9.3 Lecture 2-Changing SAS System Options */
+
+
+
+/* This lecture deals with setting system options in SAS (globally). The idea is to change the appearance of SAS outputs. */
+
+/* 
+  We start with a few important facts about SAS system options:
+    1) To change the apperance and formats of the SAS outputs, you can specify result formats to create outputs as an html
+       document, a listing(traditional SAS output), or both. 
+    2) If you create your procedure output as SAS listing, you can also control the appearance of your output by setting system 
+       options such as line size(the maximum width of the log and the output), page size(the number of lines per printed page of 
+       the output), the display of page numbers/dates/time etc. Note these enumerated options will not change the appearance of 
+       an html output.
+    3) Starting from SAS9.3, the default system setting for SAS output is html instead of traditional SAS listing. To change the
+       default setting back to traditional listing, simply use the following statements at the beginning of each SAS session:
+         ODS HTML CLOSE;
+         ODS LISTING;
+*/
+
+/*
+  To modify system options, you can submit an OPTIONS statement. You can place an OPTIONS statement anywhere in a SAS program to 
+change the settings from that point onwards. However, it is highly suggested that one place OPTIONS statements outside DATA or 
+PROC steps so that the programs are easier to debug. 
+
+  The general form of the OPTIONS statement is given by the following:
+    OPTIONS options;
+
+  Here, the options specify one or more system options to be changed. Here are a few examples: NONUMBER, NODATE, PAGENO=, OBS=, 
+FIRSTOBS=, PAGESIZE=, YEARCUTOFF=, LINESIZE= etc. 
+*/
+
+/* 
+  We first talk about the option YEARCUTOFF= and SAS time. Here are three definitions related to SAS time:
+    1) 'SAS date value' is a value representing the number of days between January 1, 1960, and a specified date. SAS can perform 
+       calculations on dates ranging from A.D. 1582 to A.D. 19,900. Dates before January 1, 1960 are negative numbers while dates 
+       after are positive numbers.SAS date values can reliably tell you what day of the week a particular day fell on as far back 
+       as September 1752, when the calendar was adjusted by dropping several days.
+    2) 'SAS time value' is a value representing the number of seconds since midnight of the current day. SAS time values are in
+       between 0 and 86400. 
+    3) 'SAS datetime value' is a value representing the number of seconds between January 1, 1960 and an hour/minute/second within 
+       a specified date.
+  Note that the default YEARCUTOFF value is set to be 1920. Leap years are automatically adjusted while leap seconds are ignored, 
+and SAS does not adjust for daylight saving time. When a two-digit year value is read, SAS interprets it based on a 100-year span 
+that starts with the YEARCUOTFF value. 
+  Here is an example. Suppose we set the YEARCUTOFF to be 1920, then 12/07/41 is read as 12/07/1941, because 41 is within this
+100-year span(from 1920 to 2019). Similarly, 04/15/30 is April 15th, 1930, because 2030 is not in the interval between 1920 and 
+2019). But note that the value of the YEARCUTOFF= option affects only two-digits year values. This means a date value containing
+a four-digit year value will be interpreted correctly even if it does not fall within the 100-year span set by the YEARCUTOFF= 
+system option.
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS YEARCUTOFF=1920;
+DATA schedule;
+  INPUT @1 jobid $ @6 projdate MMDDYY10.;
+  CARDS;
+A100 01/15/25
+A110 03/15/2025
+A200 01/30/96
+B100 02/05/00
+B200 06/15/2000
+;
+RUN;
+PROC PRINT DATA = schedule;
+RUN;
+
+/*
+  To check the default system options, we can use the OPTIONS procedure to display the current setting of all SAS system
+options. To list the value of one particular system option, we can use the OPTION= option in the PROC OPTIONS statements. You can 
+only do one option at a time!
+*/
+PROC OPTIONS; /* this checks all options in the current system */
+RUN;
+PROC OPTIONS OPTION=YEARCUTOFF; /* this checks the current system option for YEARCUTOFF value */
+RUN;
+
+/*
+  We now go over the basic system options. Here, we go over the options PAGESIZE=, PAGENO=, LINESIZE=, NODATE, NONUMBER, FIRSTOBS=,
+and OBS=. There are many other system options of course. Note that from the above options, the ones with an equality sign requires
+a specification of option values, while the one without an equality sign is a KEYWORD type of option that does not require further
+specification of option values.
+*/
+DATA sample_dataset;
+  INPUT y x1 x2 x3;
+  CARDS;
+1 2 3 4
+34 34 34 90
+98 3 45 98
+56 4 10 .
+90 5 87 97
+. 34 56 0
+54 1 . .
+;
+RUN;
+OPTIONS PAGESIZE=16; /* this specifies how many lines each page of output contains */
+                     /* option values for SAS option PAGESIZE must be between 15 and 32767 */     
+PROC PRINT DATA = Mapssas.Africa;
+RUN; /* here each page of the output produced by PROC PRINT contains 16 lines (including titles and dates, etc.) */
+OPTIONS PAGENO=23; /* this sets the starting page of the output to be page 23 */
+PROC PRINT DATA = Mapssas.Africa;
+RUN;
+OPTIONS LINESIZE=65;/* this specifies the width of the print line for the output and the log */
+                    /* option values for SAS option LINESIZE must be between 64 and 256 */
+PROC PRINT DATA = sample_dataset;
+RUN;
+OPTIONS PAGENO=23 NODATE; /* this sets the starting page of the output to be page 23 without printing the date */
+PROC PRINT DATA = sample_dataset;
+RUN;
+OPTIONS NONUMBER NODATE; /* this suppresses page numbers and dates */
+OPTIONS FIRSTOBS=50000 OBS=50003; /* this reads data starting from the 50000th observation till the 50003rd observation */
+PROC PRINT DATA = Mapssas.Africa; 
+RUN;
+PROC PRINT DATA = Mapssas.Africa(FIRSTOBS=50000 OBS=50002); 
+RUN;/* this is not a global statement, but it overrides the system option */
+
+
+
+

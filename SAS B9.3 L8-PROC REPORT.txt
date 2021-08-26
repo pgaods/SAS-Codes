@@ -1,0 +1,118 @@
+
+/* SAS Base9.3 Lecture 8-PROC REPORT */
+
+
+
+/* This lecture studies how to use PROC REPORT to create enhanced list and summary reports. */
+
+/*
+  PROC REPORT is an advanced version of PROC PRINT, though the former is way more powerful than the latter. It can be used in 
+different environment including SAS Enterprise Guide. In a nutshell. one can certainly use PROC REPORT to create list reports, 
+selecting variables/observations, defining new variables and column attributes, enhancing heading's appearance and associating 
+summary statistics. One can write a whole book about PROC REPORT though here we only give a brief introduction. Note that the 
+downside of using PROC REPORT is that it takes a long time for SAS to produce the actual output report! So if the dataset amount is 
+large, then we recommend using PROC PRINT to examine what the dataset looks like. 
+  
+  The general form of the PROC REPORT is given by the following:
+    PROC REPORT DATA= dataset-name options;
+      COLUMN var_1 var_2...var_n;
+      WHERE var_k-condition;
+      DEFINE variable/ usage attributes options 'column-heading' justification;
+    RUN;
+
+  Here the COLUMN statement specifies a list of input variables to be printed out. The WHERE statement specifies the subsetting 
+condition. The options after the dataset-name include NOWD, HEADLINE, and HEADSKIP. To be more precise:
+    1) NOWD, or NOWINDOWS: this displays a listing of the report in the OUTPUT window.
+    2) HEADLINE: this keyword underlines all column headings and the spaces betweeen them.
+    3) HEADSKIP: this writes a blank line beneath all column headings or after the underline if the HEADLINE option is used. 
+  In the DEFINE statement in which we use to define a new variable, we can have the following arguments:
+    1) usage: specifies how to use the variable. Valid keywords include ACROSS, ANALYSIS, COMPUTED, DISPLAY, GROUP and ORDER 
+    2) attributes: include FORMAT=, WIDTH=, and SPACING=
+    3) options: include DESCENDING, NOPRINT, NOZERO, and PAGE
+    4) justification: specifies column justification (CENTER, LEFT, or RIGHT)
+    5) 'column-heading': refers to a label for the column heading. 
+  Note that there could be multiple DEFINE statements in PROC REPORT. The DEFINE statement is the focus of our current lecture. We 
+now specify the details of the options in the program:
+    I. The attributes in the DEFINE statement:
+      1) SPACING=horizontal-position informs SAS of how many blank characters to leave between the selected column and the column 
+         immediately to the left. The default column spacing is 2. The SPACING= option has no effect on html output. 
+      2) WIDTH=column-width tells SAS about the width of the column. The default column width is just large enough to handle the 
+         specified format. Note in particular that in the SAS listing output environment, if column headings are long, then several 
+         headings may be wrapped over two lines. But in the html output, the longest cell value determines the column width, so 
+         wrapping doesn't occur. That is to say, the WIDTH= has no effect on html output. In addition, if a variable in the input 
+         dataset doesn't have a format associated with it, then the default PROC REPORT column width is the variable's length for 
+         character variables, and 9 for numeric variables. The value of WIDTH= ranges from 1 to the value of hte LINESIZE= in the 
+         system option.
+      3) FORMAT=format-name assigns a SAS given format or a user-defined format to that item. Note in particular that because the 
+         html table column conforms to the width of its contents, assigning the format does not increase the column width beyond 
+         the length of the data values if SAS is in the html environment. 
+    II. The usage in the DEFINE statement:
+      1) DISPLAY: by default, PROC REPORT uses character variables as display variables.
+      2) ANALYSIS: by default, PROC REPORT uses numeric variables as analysis variables (used to calculate the SUM statistic). In 
+                   the meantime, one can specify statistics other than SUM, which is the default statistic for analysis variables. 
+                   To associate a statistic with an ANALYSIS variable, you can specify the statistic as an attribute in the DEFINE 
+                   statement. Common choices of statistics include MAX, MIN, MEAN, N (number of observations with non-missing 
+                   values), NMISS (number of observations with missing values), RANGE, STD, STDERR(standard error of the mean), 
+                   VAR, SUM, PCTN (percentage of a cell or row frequency to a total frequency). There are other statistics, which 
+                   can be found from the online documentation. 
+      3) COMPUTED: this is rarely used in the SAS Windows environment. For more info, check the online documentation. The COMPUTED
+                   variables can be either numeric or character. 
+      4) GROUP: if a report contains one or more group variables, then PROC REPORT consolidates into one row all observations from 
+                the dataset that have a unique combination of values for all group variables. To use it, simply put the keyword 
+                GROUP right after the slash in the DEFINE statement.
+      5) ACROSS: ACROSS variables are functionally similar to group variables, except for the fact that PROC REPORT displays the 
+                 groups that it creates for an ACROSS variable horizontally rather than vertically.
+      6) ORDER: an ORDER variable orders the detail rows in a report according to their formatted values. To use it, simply put the
+                keyword ORDER right after the slash in the DEFINE statement. By default, the order is ascending. One can change it 
+                to descending by putting the keyword DESCENDING right after the keyword ORDER. 
+    III. The 'column-heading' and justification in the DEFINE statement:
+      1) SPLIT: this option is used when you have column headings you want, yet the columns are so side that you prefer to split 
+                the long column headings across two lines. To use this particular option, one can either use the default slash '/' 
+                as the split character, or define a split character by using the SPLIT=option in the PROC REPORT statement. 
+      2) CENTER, LEFT or RIGHT: these keywords are placed right after the 'column-heading', which labels the column name. The 
+                                default justification is LEFT.                                   
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=100;
+DATA flights;
+  INPUT Flight $ Departure $ Destination $ Mail Freight Revenue Cost;
+  CARDS;
+  821 BUDAPE LON 403 209 1400 210
+  271 BUDAPE PAR 492 208 1308 289
+  271 BUDAPE PAR 344 348 1098 451
+  821 BUDAPE LON 234 477 1783 234
+  821 BUDAPE LON 244 398 1732 298
+  278 PRAGUE LON 245 299 1897 276
+  ;
+RUN;
+PROC REPORT DATA=flights;
+  COLUMN Flight Departure Destination Mail Freight Revenue Cost;
+  DEFINE Flight/ORDER DESCENDING 'Flight Number' CENTER WIDTH=6 SPACING=4;
+    /* this labels the variable Flight with 'Flight Number' */
+  DEFINE Departure/ RIGHT SPACING=5; 
+    /* this makes the alignment to the right-hand side */
+  DEFINE Revenue/FORMAT=DOLLAR8.2;
+RUN;
+PROC REPORT DATA=flights NOWD HEADLINE HEADSKIP;
+  COLUMN Flight Departure Destination Mail Freight Revenue Cost;
+  WHERE Departure='BUDAPE';
+  DEFINE Flight/ORDER DESCENDING 'Flight Number' CENTER WIDTH=9 SPACING=4;  
+  DEFINE Departure/ GROUP RIGHT SPACING=5 'Departure City'; 
+  DEFINE Destination/ GROUP LEFT SPACING=4 'Destination City';
+  DEFINE Revenue/ FORMAT=DOLLAR8.2 'Revenue' CENTER;
+  DEFINE Cost/ FORMAT=DOLLAR7.2 'Cost' CENTER;
+RUN;
+PROC REPORT DATA=flights NOWD HEADLINE;
+  COLUMN Flight Departure Destination Mail Freight Revenue Cost;
+  DEFINE Flight/ORDER DESCENDING 'Flight Number' CENTER WIDTH=9 SPACING=4;  
+  DEFINE Departure/ ACROSS RIGHT SPACING=5 'Departure City'; 
+    /* for each ACROSS variable, the table cells contain a frequency count for each unique value */
+  DEFINE Revenue/FORMAT=DOLLAR8.2 'Revenue' CENTER;
+  DEFINE Cost/ 'Cost' CENTER;
+RUN;
+PROC REPORT DATA=flights NOWD HEADLINE HEADSKIP SPLIT='/';
+  COLUMN Flight Departure Destination Mail Freight Revenue Cost;
+  DEFINE Flight/ORDER DESCENDING 'Flight Number' CENTER WIDTH=9 SPACING=4;  
+  DEFINE Revenue/ N 'Revenue:/number/ of/ observations/ with/ nonmissing/ values' CENTER;
+RUN;

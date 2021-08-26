@@ -1,0 +1,224 @@
+/* SAS Base9.3 Lecture 12-Intro to ODS */
+
+
+
+/* This lecture briefly discusses how to use ODS to produce PDF, CSV, and HTML outputs. */
+
+/*
+  ODS stands for Output Delivery System. It determines where the output should go and what it should look like when the data are 
+obtained from the PROC step. It's like an airport, or more precisely, a packaging machine that packages data and presents them to 
+the market. This means the question to ask is not whether one wants to use ODS--we always use ODS. The question is whether to 
+accept default output or choose something else. Different types of ODS output are called destinations. What the data look like when
+they get to their destination is determined by something called templates in SAS. A template is a set of instructions telling ODS 
+how to format the data.
+*/
+
+/*
+  Whenever you don't specify a destination a priori, your output will be sent to the listing destination by default. The listing is 
+what you see in the output window if you use the SAS windowing environment, or in the listing or output file if you use batch mode.
+Below are the major destinations in SAS. Notice that the MARKUP destination is a general purpose tool for creating output in markup
+formats. This includes XML, HTML, LaTeX, CSV, and many other formats where data can be thought of as separated by tags. Meanwhile, 
+the DOCUMENT destinations allow you to create reusable output "documents" that you can rerender for any destination. So, if your 
+boss really wants that report in PDF, not RTF, you can replay the output document without having to rerun the entire SAS program 
+that created the data. With an output document, you can also rearrange, duplicate, or delete tables to further customize your final
+output. Here is a list of the ODS destinations:
+   LISTING  standard SAS output
+   OUTPUT   SAS output dataset
+   HTML      
+   RTF      Rich Text Format
+   PRINTER  high resolution printer output
+   PS       PostScript
+   PCL      Printer Control Language
+   PDF
+   MARKUP   markup languages including XML
+   DOCUMENT output document
+*/
+
+/*
+  Templates in SAS describe how ODS should format and present your data. The two most common types of templates are called table 
+templates and style templates (also called table definitions and style definitions, respectively). A table template specifies the 
+basic structure of your output while a style template specifies how the output will look. ODS combines the data produced by some 
+procedure with a table template and together they are called an "output object". The output object is then combined with a style 
+template and sent to a destination to create your final output. A few procedures, most notably PRINT, REPORT, and TABULATE, don't 
+have already-made table templates. Instead, the syntax for these procedures requires you to use STYLE= option directly in the 
+procedure step to control individual features of the output without having to create a whole new template.
+*/
+
+/*
+  The ODS TRACE statement tells SAS to print info about output objects in your SAS log. There are 2 ODS TRACE statements--one to 
+turn on the trace and one to turn it off. 
+
+  The general form of the ODS TRACE ON and ODS TRACE OFF statements are used in the following way:
+    ODS TRACE ON;
+       ...the PROC steps you want to trace...;
+    RUN;
+    ODS TRACE OFF;
+
+  After catching the name of the output object (specified in the log, check the Path!), you can use an ODS SELECT (or EXCLUDE) 
+statement to choose just the output objects you want. 
+
+  The general form of an ODS SELECT statement is given by the following:
+    ...The PROC step with the output objects you want to select...;
+      ODS SELECT output_object_list;
+    RUN;
+
+  Note the output_object_list is the name, label, or path of one or more output objects separated by spaces. By default, an ODS
+SELECT statement lasts for only one PROC step, so by placing the SELECT statement after the PROC statement and before the RUN 
+statement, you are sure to capture the correct output. ODS EXCLUDE statement works the same way except you list output objects that
+you want to eliminate.
+*/
+ODS HTML CLOSE;
+ODS LISTING; /* doing this conserves system resources */
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA Prb2_19;
+  INPUT Race Fees Count;
+  CARDS;
+1  90 871
+1  90 444
+1  91 873
+0  80 302
+0  90 80
+0  80 43
+;
+RUN;
+PROC PRINT DATA=Prb2_19;
+RUN;
+ODS TRACE ON;
+PROC SORT DATA=Prb2_19;
+  BY Race;
+RUN;
+PROC MEANS DATA=Prb2_19;
+  BY Race;
+  TITLE 'elections';
+RUN;
+PROC MEANS DATA=Prb2_19;
+  BY Race;
+  TITLE 'elections';
+ODS SELECT Means.ByGroup1.Summary; 
+  /* we get Means.ByGroup1.Summary from the path item in the SAS log! */
+  /* because of the BY statement, the MEANS procedure produces one output object for each BY group */
+  /* Notice that these2 output objects have the same name, label, and template, but different paths */
+RUN;
+ODS TRACE OFF;
+
+/*
+  Sometimes one wants to put the results from a procedure into a SAS dataset. Once the results are in the dataset, one can merge
+them with another dataset, create new variables, or use the results in other procedures. With the aid of ODS you can save almost 
+every part of procedure output as a SAS dataset by sending it to the OUTPUT destination. To do so, first you need to use an ODS 
+TRACE statement to determine the name of the output object you want. Then you use an ODS OUTPUT statement to send that object to 
+the OUTPUT destination. 
+
+The general form of a basic ODS OUTPUT statement is given by the following:
+    ODS OUTPUT output_object = new_dataset
+
+  Here, the output_object is the name, label or path of the piece of output you want to save, and the new_dataset is the name of 
+the SAS dataset you intend to create. The ODS OUTPUT statement does not belong to either a DATA or a PROC step, but you need to be 
+careful where you put it. The ODS OUTPUT statement opens a SAS dataset and waits for the correct procedure output. The dataset 
+remains open till the next encounter with the end of a PROC step. Note that because the ODS OUTPUT statement executes immediately,
+it will apply to whatever PROC is currently being processed, or it will apply to the next PROC if there is not a current PROC. 
+Thus, we highly recommend that one puts the ODS OUTPUT statement after the PROC statement, and before the next PROC, DATA, or RUN
+statements.
+*/
+PROC MEANS DATA=Prb2_19;
+  BY Race;
+  TITLE 'elections';
+ODS OUTPUT Summary=output_table; 
+  /* the word "Summary" is the name of the output_object, which is specified in the SAS log */ 
+  /* we recommend putting the ODS OUTPUT statement after the PROC statement, and before the next PROC, DATA, or RUN statement */
+RUN;
+PROC PRINT DATA=output_table;
+  TITLE 'extracted table by ODS';
+RUN;
+
+/*
+  We first study how to output pdf files. Recall pdf is one of the most important destinations listed before, as this is often the 
+case when your boss wants you to write a report in pdf.
+
+  The general form the ODS PDF statement is given by the following:
+    ODS PDF FILE='filename's path';
+    ...PROC steps to be written out using PDF destination...
+    ODS PDF CLOSE;
+
+  The filename's path is the physical location where the file is stored in the computer.
+*/
+ODS LISTING CLOSE;
+ODS PDF FILE = '\\sscwin\dfsroot\users\tgao4\Desktop\marinepdf.pdf';
+DATA marine;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\SeaLife.dat';
+  INPUT Name $ Family $ Length @@;
+PROC MEANS DATA = marine;
+  CLASS Family;
+  TITLE 'Whales and Sharks';
+PROC PRINT DATA = marine;
+RUN;
+ODS PDF CLOSE; /* one can now check the physical location '\\sscwin\dfsroot\users\tgao4\Desktop' to find the pdf file */
+
+/*
+  We now study how to output csv files. Recall csv is one of the most important destinations listed before, as this is often the 
+case when we want to output a file in csv format so that in the future SAS can grab it and read it again into SAS datasets.
+
+  The general form the ODS CSV statement is given by the following:
+    ODS CSV FILE='filename's path';
+    ...PROC steps to be written out using CSV destination...
+    ODS CSV CLOSE;
+
+  The filename's path is the physical location where the file is stored in the computer.
+*/
+ODS LISTING CLOSE;
+ODS CSV FILE = '\\sscwin\dfsroot\users\tgao4\Desktop\marinecsv.csv';
+DATA marine;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\SeaLife.dat';
+  INPUT Name $ Family $ Length @@;
+PROC MEANS DATA = marine;
+  CLASS Family;
+  TITLE 'Whales and Sharks';
+PROC PRINT DATA = marine;
+RUN;
+ODS CSV CLOSE; /* one can now check the physical location '\\sscwin\dfsroot\users\tgao4\Desktop' to find the csv file */
+
+/*
+  We now study how to output HTML files, which is the most complicated one among all the destinations in the ODS system. When you 
+send output to the HTML destination, you get files in HTML format. These files are ready to be posted on a website for viewing by 
+your boss or other colleagues, but HTML output has other uses too. It can be read into spreadsheets, and even printed or imported 
+into word processors. To genrate HTML files, all you need are two statements--one to open the HTML file and one to close it. A good
+place to put the first ODS statement is just before the PROC step whose output you wish to capture, and the best place to put the 
+second ODS statement is right after the PROC step following a RUN statement. To send output to the HTML destination, we need to use
+the ODS HTML statement. 
+
+  The general form of the ODS HTML statement is given by the following:
+    ODS HTML BODY = 'body_filename.html'
+             CONTENTS = 'contents_filename.html'
+             PAGE = 'page_filename.html'
+             FRAME = 'frame_filename.html'
+             STYLE = style_name;
+    ...PROC steps to be written out using HTML destination...
+    ODS HTML CLOSE;
+
+  Here the body file contains the results of your procedures. The options FILE= and BODY= are synonymous. Moreoever, using options 
+such as CONTENTS, PAGE, FRAME etc., you can create more fancy types of HTML files. Note that you always want to create a body file, 
+but the other options such as CONTENTS=, PAGE= etc. are optional. Note that the semicolon ends at the end of the options of the ODS
+HTML statement.
+*/
+ODS LISTING CLOSE;
+ODS HTML 
+         BODY = '\\sscwin\dfsroot\users\tgao4\Desktop\marinebody.html' 
+                   /* this tells SAS to send output to the html while saving the body file named marinebody.html */
+                   /* the word BODY= is an alias for FILE= */
+         CONTENTS = '\\sscwin\dfsroot\users\tgao4\Desktop\sealifecontent.html'
+         PAGE = '\\sscwin\dfsroot\users\tgao4\Desktop\sealifepage.html'
+         FRAME = '\\sscwin\dfsroot\users\tgao4\Desktop\sealifeframe.html' 
+		           /* if you specify, FRAME= you must also specify CONTENTS= */
+                           /* the frame doesn't get displayed like body and contents, but stored */
+         STYLE = D3D; 
+DATA marine;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\SeaLife.dat';
+  INPUT Name $ Family $ Length @@;
+PROC MEANS DATA = marine;
+  CLASS Family;
+  TITLE 'Whales and Sharks';
+PROC PRINT DATA = marine;
+RUN;
+ODS HTML CLOSE; /* one can now check the physical location '\\sscwin\dfsroot\users\tgao4\Desktop' to find the html file(s) */
+
+
+

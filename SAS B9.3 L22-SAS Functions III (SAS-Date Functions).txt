@@ -1,0 +1,212 @@
+/* SAS Base9.3 Lecture 22-SAS Functions III. (SAS-Date Functions)  */
+
+
+
+/* This lecture studies the SAS-date functions. */
+
+/* 
+  We now learn SAS-date functions. These functions include (but are not limited to) the following: MDY(), TODAY(), DATE(), TIME(),
+DAY(), QTR(), WEEKDAY(), MONTH(), YEAR(), INTCK(), INTNX(), DATEIF(), and YEARIF(). Recall that SAS stores date values as numbers.
+So by using SAS date functions, one can perform numeric computation. For convenience, we will now group these functions above into 
+different categories and discuss their usage respectively. 
+/*
+
+/*
+  I. YEAR(), QTR(), MONTH, and DAY():
+  Every SAS date value can be queried for the values of its year, month, and day. Since these four functions work in the same way,
+we will study them together:
+  
+  The general form of the YEAR(), QTR(), MONTH(), and DAY() functions are:
+    YEAR(date)
+    QTR(date)
+    MONTH(date)
+    DAY(date)
+    WEEKDAY(date)
+
+  Here, the date is a SAS-date value that is specified either as a variable or as a SAS date constant. That is to say, things like
+YEAR(05/08/2010) are not valid, and writing the function in this way will generate an error in the SAS log. Note that The WEEKDAY()
+function produces an integer that represents the day of the week, where 1=Sunday, 2=Monday, ..., 7=Saturday. The argument of YEAR()
+*/
+
+/*
+  II. MDY():
+  The MDY() function works similarly, though this function requires 3 arguments. It outputs a date based on the month, day, year 
+given by the data. The output is in essence a SAS-date value. 
+
+  The general form of the MDY() function is given by:
+    MDY(month, day, year)
+
+  Here, month is a value between 1 and 12, day a within 1-31, and year is a number that has 2 or 4 digits (we strongly recommend
+using the 4-digits system) to avoid the possibility of confusing SAS. The output of this function is a SAS-date value. 
+*/
+
+/*
+  III. DATE(), and TODAY():
+  These two functions return the current date from the system clock as a SAS date value. The DATE() and TODAY() functions have the
+same form and can be used interchangeably. These functions require no arguments, but they must still be followed by parentheses. 
+*/
+
+/*
+Below is an example that demonstrates how to use the functions we have learned so far. Note that if you specify an invalid date in 
+the MDY() function, SAS will assign a missing value to that target variable. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I YEARCUTOFF=1920; 
+DATA number;
+  INPUT Height Weight Date MMDDYY10.; 
+    /* this is the informat, so that if you print the dataset 'number', the display of the variable 'Date' will be in SAS-date*/
+  CARDS;
+1.76 160 05/02/2014
+1.90 180 05/02/2014
+1.67 145 04/03/2012
+;
+RUN;
+PROC PRINT DATA=number;
+RUN;
+DATA timer (RENAME=(SAS_Date=Date));
+  SET number;
+  year=YEAR(Date);
+  quarter=QTR(Date);
+  month=MONTH(Date);
+  day=DAY(Date);
+  SAS_Date=Date;
+  FORMAT Date MMDDYY10.;
+  ;
+RUN;
+PROC PRINT DATA=timer;
+RUN;
+DATA timesheet (DROP=quarter);
+  SET timer;
+  ReviewDate=MDY(month, day, year); /* one should expect that the ReviewDate has the same value as SAS_Date */
+  EditDate=DATE(); /* no arguments are required here and the output is a SAS-date */
+RUN;
+PROC PRINT DATA=timesheet;
+  FORMAT EditDate DATE9.;
+RUN;
+PROC CONTENTS DATA=timesheet;
+RUN;
+
+/*
+  IV. INTCK():
+  This function returns the number of time intervals that occur in a given time span. One can use it to count the passage of days, 
+months, and so on (it is an abbreviation for interval-clock). The output of the function is a numeric non-negative constant.
+
+  The general form of the INTCK() function is given by:
+    INTCK('interval', from, to)
+
+  Here, the 'interval'-argument specifies a character constant or variable. The value must be one of hte following characters: day, 
+weekday, week, tenday, semimonth, month, dtmonth, dtweek, hour, minute, second, qtr, semiyear, and year etc. The from-argument then 
+specifies a SAS-date, SAS-time, or SAS-datetime value that identifies the beginning of the time, while the to-argument specifies a 
+SAS-date, SAS-time or SAS-datetime value which identifies the end of the time span. Of course the type of interval must match the 
+type of value in the from-argument. This is one of the most important functions in this lecture. 
+  A cautionary note here: the INTCK() function counts intervals from fixed interval beginnings, not in multiples of an interval 
+unit from the from-value. Partial intervals are not counted. For example, the week intervals are counted by Sundays rather than 
+7-day multiples from the from-argument. The month intervals are counted by day 1 of each month, and year intervals are counted from
+01JAN, not in 365-day multiples. To see what this means, consider the following result:
+          
+              SAS Statements                                Values          
+      Weeks=INTCK('week', '31dec2000'D, '01jan2001'D)         0
+      Months=INTCK('month', '31dec2000'D, '01jan2001'D)       1
+      Years=INTCK('year', '31dec2000'D, '01jan2001'D)         1
+      Years_1=INTCK('year', '01JAN2002'D, '31dec2002'D)       0
+
+  For the first example, since December 31st, 2000 is a Sunday, no week interval is crossed between that day and January 1st, 2001,
+so the value of the function is 0. However, both month and year intervals are crossed, so their values are 1. In the last example, 
+since INTCK() starts counting from January 1st, the to-argument ends right before the next year's January 1st, it does not fully 
+reach one year. So the value becomes 0. 
+*/
+DATA timesheet1 (DROP=SAS_Date);
+  SET timesheet;
+  Year_interval=INTCK('year', SAS_Date, TODAY()); /* we shall expect this variable to a numeric value */
+RUN;
+PROC PRINT DATA=timesheet1;
+RUN;
+
+/*
+  V. INTNX():
+  This function is very similar to the INTCK() function. The INTNX() function applies multiples of a given interval to a date, 
+time, or datetime value and returns the resulting value. You can use the INTNX() function to identify past or future days, weeks,
+months, and so on. The output of the function is a SAS-date value. 
+
+  The general form of the INTNX() function is given by:
+    INTNX('interval', from, increment, 'alignment')
+
+  Here, the 'interlval'-argument specifies a character constant or variable. When you specify the date intervals, the value of the
+character constant or variable that is used in the 'interval'-argument must be one of the following: day, weekday, week, tenday, 
+semimonth, month, dtmonth, dtweek, hour, minute, second, qtr, semiyear, and year etc. The from-argument, as before, specifies a 
+starting SAS-date, SAS-time, or SAS-datetime value. The increment-argument specifies a negative, or positive integer that will
+represent time intervals toward the past or future. The alignment-argument is optional. It forces the alignment of the returned 
+date to the beginning, middle, or end of the interval. The values of alignment can be 'B', 'M', or 'E' (beginning, middle, or end).
+If no option is specified, then the default value is 'B'. Here are some example to make this clear:
+
+              SAS Statements                         Value of the function (in SAS-date value)         Calendar Value                 
+      Targetyear=INTNX('year', '05feb1994'D, 3)                  13515                                  Jan 1st, 1997  
+      Targetmonth1=INTNX('month', '01jan95'D, 5, 'B')            12935                                  Jun 1st, 1995
+      Targetmonth2=INTNX('month', '01jan95'D, 5, 'M')            12949                                  Jun 15th, 1995
+      Targetmonth2=INTNX('month', '01jan95'D, 5, 'E')            12964                                  Jun 30th, 1995
+
+  More examples can be found here: http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212700.htm
+*/
+
+/*
+  VI. DATDIF, and YRDIF():
+  These two functions calculate the difference in days and years between two SAS-dates, respectively. Both functions accept start 
+dates and end dates that are specified as SAS-date values. Also, both functions use a basis argument that describes how SAS can
+calculate the date differences.
+
+  The general forms of the DATDIF() and YRDIF() functions are given by:
+    DATIF(start-date, end-date, basis)
+    YRDIF(start-date, end-date, basis)
+
+  Here, the basis-argument identifies a character constant or variable that describes how SAS calculates a date difference. There're
+two character strings that are valid for basis in the DATDIF() function and four character strings that are valid for basis in the 
+YRDIF() function. These character strings and their meanings are listsed in the table below:
+    1) '30/360': specifies a 30-day month and a 360-day year in calculating the number of years. Each month is considered to have 30
+       days, and each year 360 days, regardless of the actual number of days in each month or year. If either date falls at the end 
+       of a month, it is treated as if it were the last day of a 30-day month. 
+    2) 'ACT/ACT': uses the actual number of days between dates in calculating the number of years. SAS calculates this value as the 
+       number of days that fall in 365-day years divided by 365 plus the number of days that fall in 366-day years divided by 366. 
+    3) 'ACT/360': uses the actual number of days between dates in calculating the number of years. SAS calculates this value as the 
+       number of days divided by 360, regardless of the actual number of days in each year. 
+    4) 'ACT/365': uses the actual number of days between dates in calculating the number of years. SAS calculates this value as the 
+       number of days divided by 365, regardless of the actual number of days in each year. 
+*/
+DATA _NULL_;
+   sdate='16oct1998'D;
+   edate='16feb2010'D;
+   y30360=YRDIF(sdate, edate, '30/360');
+   yactact=YRDIF(sdate, edate, 'ACT/ACT');
+   yact360=YRDIF(sdate, edate, 'ACT/360');
+   yact365=YRDIF(sdate, edate, 'ACT/365');
+   PUT y30360= / yactact= / yact360= / yact365= ;
+RUN; /* check the log and see what happens! */
+
+/*
+  VI. HOLIDAY():
+  The HOLIDAY() function is one of the coolest function in SAS, which is very easy to use. What it does is that it returns a SAS date
+value of a specified holiday for a specified year. 
+
+  The general forms of the HOLIDAY() functions are given by:
+    HOLIDAY('holiday_name', year)
+
+  Here, the holiday_name argument is a constant, variable, or expression that specifies one of the values recognized by SAS. The year 
+argument is a numeric constant, variable or expression that specifies a four-digit year. If you use a two-digit year, you must specify
+the YEARCUTOFF= option. Of course, the result of the function is a SAS datae value. If you want to see what it exactly resolves to, we
+need to use the format as usual. A list of holidays recognized by SAS is listed here in the following link. These holidays will mainly 
+applyto North America: http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a003060817.htm. Lastly, note
+that the the holiday_name argument is not case-sensitive, but it has to be quoted. 
+*/
+DATA holidays;
+  FORMAT Thxgiving_Day Xmas_Day Martin_Luther_King_Day Independence_Day Valentines_Day Boxing_Day date9.;
+  Thxgiving_Day=HOLIDAY('thanksgiving', 2015);
+  Xmas_Day=HOLIDAY('christmas', 2015);
+  Martin_Luther_King_Day=HOLIDAY('mlk', 2015);
+  Independence_Day=HOLIDAY('USINDEPENDENCE', 2015);
+  Valentines_Day=HOLIDAY('Valentines', 2015);
+  Boxing_Day=HOLIDAY('bOXiNg', 2015);
+RUN; 
+PROC PRINT DATA=holidays;
+  TITLE 'Some Common Holidays';
+RUN;
+

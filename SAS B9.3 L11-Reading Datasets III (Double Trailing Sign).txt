@@ -1,0 +1,101 @@
+
+/* SAS Base9.3 Lecture 11-Reading Datasets III. (Double Trailing Sign) */
+
+
+
+/* This lecture studies how to use the double trailing sign @@ to read data. */
+
+/*
+  Sometimes you may need to create multiple observations from a single record of raw data. One way to tell SAS how to read such a 
+record is to use the other line-hold specifier, the double trailing (at-)sign (@@ or "double trailing @"). The double trailing sign
+not only prevents SAS from reading a new record into the input buffer when a new INPUT statement is encountered, but it also can
+prevent the record from being released when the program returns to the top of the DATA step. We will use an example to show how to 
+use @@ at the end of the INPUT statement. 
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=80;
+DATA body_fat;
+   INPUT Gender $ PercentFat @@;
+   DATALINES; 
+m 13.3 f 22    
+m 22   f 23.2    
+m 16   m 12    
+;
+RUN; /* each record contains the raw data for two observations instead of one */
+PROC PRINT DATA=body_fat;
+  TITLE 'Results of Body Fat Testing';
+RUN; /* in the output you should have 2 variables and 6 observations */
+
+/*
+  We now describe the behind-the-curtain process of SAS data reading. When SAS reaches the end of the DATA step, it returns to the 
+top of the program and begins the next iteration, executing until there are no more records to read. Each time it returns to the 
+top of the DATA step and executes the INPUT statement, it automatically reads a new record into the input buffer. The second set of 
+data values in each record, therefore, would never be read.
+  To allow the second set of data values in each record to be read, the double trailing sign tells SAS to hold the record in the 
+input buffer. Each record is held in the input buffer until the end of the record is reached. The program does not automatically 
+place the next record into the input buffer each time the INPUT statement is executed, and the current record is not automatically 
+released when it returns to the top of the DATA step. As a result, the pointer location is maintained on the current record which 
+enables the program to read each value in that record. Each time the DATA step completes an iteration, an observation is written to
+the data set.
+  For the example above, When the pointer reaches the blank space that follows the value 13.3, the complete value for the variable 
+PercentFat has been read. The pointer stops in the next column, and the value 13.3 is written to the program data vector. There are 
+no other variables in the INPUT statement and no more statements in the DATA step now, so three actions take place now: 
+    1).The first observation is written to the data set.
+    2).The DATA step begins its next iteration.
+    3).The values in the program data vector are set to missing.
+  So now SAS is ready to read the next piece of data in the same record. Now the INPUT statement reads the next two values from the
+input buffer and writes them to the program data vector, so that the second observation is created. Then the DATA step begins its 
+third iteration. Values in the program data vector are set to missing, and the INPUT statement executes. The pointer, which is now 
+at column 13 (two columns to the right of the last data value that was read), continues reading. Because this is list input, the 
+pointer scans for the next nonblank character to begin reading the next value. When the pointer reaches the end of the input buffer
+and fails to find a nonblank character, SAS reads a new record into the input buffer. The process continues until SAS reads all the
+records. Note that although this program successfully reads all of the data in the input records, SAS writes a message to the log 
+noting that the program had to go to a new line.
+  Details of this lecture can be found from the following link from the SAS official website:
+    http://support.sas.com/documentation/cdl/en/basess/58133/HTML/default/viewer.htm#a002645786.htm
+  There are many other sources to review this part of the lecture online of course. The essence of the lecture is that @@ tells SAS 
+rather than advancing to a new record, hold the current input record for the execution of the next INPUT statement, even across 
+iterations of the DATA step. We now give another example. 
+*/
+DATA weather;
+   INPUT Month $ AvgHigh AvgLow @@;
+   DATALINES; 
+Jan 32 16 Feb 35 18 Mar 46 26 
+Apr 58 37 May 68 47 Jun 78 56
+Jul 82 60 Aug 80 58
+Sep 72 51
+Oct 61 40 Nov 48 32
+;
+RUN; 
+PROC PRINT DATA=weather;
+  TITLE 'Weather';
+RUN; 
+/*
+  To understand SAS data-procesing. We go over each step now. During the compilation phase, SAS creates a program data vector that
+contains a storage location for each variable name that appears in the INPUT statement and subsequent assignment statements. As the
+execution phase begins and SAS encounters the INPUT statement, SAS reads the first line in the input data file into an input buffer
+so that during the first iteration of the DATA step, the INPUT statement tells SAS to read Month, AvgHigh and AvgLow. After doing 
+so, the input pointer points to the blank space after the low temperature value of 16 in this case, and now SAS places the values 
+that are read into their appropriate place in the program data vector. The automatic variables _N_=1 and _ERROR_=0 respectively. 
+Because the INPUT statement is the only statement in the program, after SAS executes it, the first iteration of the DATA step is 
+complete. Therefore, SAS writes the 1st observation to the SAS dataset and returns to the top of the DATA step to begin its 2nd 
+iteration. The automatic variable _N_ is increased to 2 for the time being, and the variable values in the program data vector are 
+reset to missing. 
+  Now this is where @@ kicks in. Because SAS is beginning another iteration of the DATA step, by default the INPUT statement should
+be telling SAS to put the next record in the input data file into the input buffer. The double trailing sign says not to do that 
+though! Instead, it tells SAS to hold onto the record that is currently in the input buffer, and to read the values for Month, 
+AvgHigh, and AvgLow from it. After doing so, the input pointer points to the blank space after the low temperature value of 18, and
+SAS places the values that are read into their appropriate place in the program data vector. The second iteration now is complete. 
+SAS writes the second observation to the dataset, and returns to the top of the DATA step to begin its third iteration, while the
+automatic variable _N_ is set to 3 and the variable values in the program data vector are reset to missing. 
+  Lastly, we mention a few caveats:
+    1) SAS releases a record being held by @@ when SAS moves the input pointer past the end of a record.
+    2) SAS releases a record being held by @@ also when an INPUT statement that has no line-hold specifiers executes.
+    3) @@ should not be used in conjunction with column input, the @n absolute pointer control, nor with the MISSOVER option. 
+  Details of this part of the lecture can be found at the following link:
+    https://onlinecourses.science.psu.edu/stat481/book/export/html/63
+*/
+
+
+

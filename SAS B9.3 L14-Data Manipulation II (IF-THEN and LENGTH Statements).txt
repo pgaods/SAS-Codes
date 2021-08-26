@@ -1,0 +1,118 @@
+/* SAS Base9.3 Lecture 14-Data Manipulation II. (IF-THEN Statements and LENGTH statements) */
+
+
+
+/* This lecture studies techniques of data manipulation. We focuse studying the IF-THEN and LENGTH statements. */
+
+/*
+  To manipulate variables, sometimes we need to use conditional statements to subset data. We also need to ensure that when we 
+create new variables, they have exactly the length as desired. To achieve these two goals, we use the IF-THEN statements and the
+LENGTH statement. We discuss these two statements together because when we use the IF-THEN statement to create new variables, we 
+highly suggest using the LENGTH statement to avoid character-valued data truncation. 
+
+  The general form of a LENGTH statement is given by the following:
+    LENGTH variables(s) $ length;
+
+  Above, the variable(s) names the variables to be assigned a length. The dollar sign is specified only if the variable is a 
+character variable, and the length is an integer that specifies the length of the variable.
+
+  The general form of a IF-THEN conditional statement is given by the following:
+    IF expression_1 THEN statement_1;
+    ELSE IF expression_2 THEN statement_2;
+    ...;
+    ELSE IF expression_n THEN statement_n;
+    ELSE statement;
+  
+  To add a few logic words connecting these statements, here is a list:
+    Operator(s)      Meaning
+    =       eq       equal to
+    ^=      ne       not equal to
+    >       gt       greater than
+    <       lt       less than
+    >=      ge       greater or equal than
+    <=      le       less or equal than
+    in               equal to one of a list
+    &       AND      and
+    |       OR       or
+    ^       ~        not
+
+  A few caveats here: 
+    1) Logical comparisons enclosed in parentheses are evaluated before they're compared to other expressions.
+    2) Any numeric values other than 0 or missing is true, and a value of 0 or missing is false. So this basically means that any 
+       nonzero, nonmissing constant is always evaluated as true. For example, the statement IF x=1 or 2 is always true, yet the 
+       statement IF x=1 or x=2 is not necessarily always true. Because for the first statement, SAS first evaluates x=1, and the 
+       result can be either true or not. However, because the 2 is evaluated as nonzero and nonmissing(true), the entire expression
+       is true. 
+    3) The LENGTH statement and the IF-THEN statement often go hand-in-hand together in the DATA step to ensure that there is no 
+       truncation of the data. We highly recommend using the LENGTH statement before the IF-THEN statement when we define new 
+       character-valued variables in the IF-THEN statement. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA games;
+ INPUT Month 1 Day 3-4 Team $ 6-25 Hits 27-28 Runs 30-31;
+ CARDS;
+6-19 Columbia Peaches     8  3
+6-20 Columbia Peaches    10  5
+6-23 Plains Peanuts       3  4
+6-24 Plains Peanuts       7  2
+6-25 Plains Peanuts      12  8
+6-30 Gilroy Garlics       4  4
+7-1  Gilroy Gralics       9  4
+7-4  Sacramento Tomatoes 15  9
+7-4  Sacramento Tomatoes 10 10
+7-5  Sacramento Tomatoes  2  3
+;
+RUN;
+DATA games;
+  SET games;
+  LENGTH Eval $ 5; /* we assign 5 because the longest character string in the variable Eval is 'super', which has a length of 5 */
+  RETAIN RunsToDate 30;
+  RunsToDate+Runs; /* the initial value of Runs is 3, and the initial value of RunsToDate is 30 */  
+  IF RunsToDate<50 THEN Eval='Low';
+    ELSE IF RunsToDate>=50 and RunsToDate<70 THEN Eval='Good';
+      ELSE Eval='Super';
+RUN;
+PROC PRINT DATA=games;
+RUN;
+/*
+  Note that before we use the IF-THEN statements, we incorporated a LENGTH statement to avoid data truncation. What we mean here is
+the following: suppose we had not had the LENGTH statement in the DATA step, the printed output would have looked like below:
+
+                                                                 Runs
+  Obs    Month    Day           Team            Hits    Runs    ToDate    Eval
+
+    1      6       19    Columbia Peaches         8       3       33      Low
+    2      6       20    Columbia Peaches         0       5       38      Low
+    3      6       23    Plains Peanuts           3       4       42      Low
+    4      6       24    Plains Peanuts           7       2       44      Low
+    5      6       25    Plains Peanuts           2       8       52      Goo
+    6      6       30    Gilroy Garlics           4       4       56      Goo
+    7      7        1    Gilroy Gralics           9       4       60      Goo
+    8      7        4    Sacramento Tomatoes      5       9       69      Goo
+    9      7        4    Sacramento Tomatoes      0       0       69      Goo
+   10      7        5    Sacramento Tomatoes      2       3       72      Sup
+
+  Note that the newly created variable Eval is truncated. This is not a SAS bug. Rather, it is due to the fact that during the 
+compilation phase, when creating a new character variable in an assignment statement, SAS allocates as many bytes of storage space
+as there are characters in the first value that it encounters for that variable. In this case, the first value for Eval occurs in 
+the IF-THEN statement, which specifies a 3-character value, so the length of the variable Eval is automatically assigned to be 3 
+in our example. This means the rest of the characters in Good and Super are truncated to only the length of 3. To correct this
+problem, one can use the LENGTH statement to specify a length for the newly created variable before the IF-THEN statement. This is
+why we mentioned above that "we highly recommend using the LENGTH statement before the IF-THEN statement when we define some new 
+character-valued variables in the IF-THEN statement".
+*/
+
+/*
+  Lastly, we talk about a variant of IF-THEN statement, which is IF...THEN DELETE. This is often used in unwanted variables. In 
+fact, the word DELETE can itself form a statement. We use an example to illustrate this point. 
+*/
+DATA games;
+  SET games;
+  RETAIN RunsToDate 30;
+  RunsToDate+Runs; /* the initial value of Runs is 3, and the initial value of RunsToDate is 30 */  
+  IF Month=7 THEN DELETE;
+RUN;
+PROC PRINT DATA=games;
+RUN;

@@ -1,0 +1,76 @@
+/* SAS Base9.3 Lecture 16-Data Manipulation IV. (SELECT-END statements) */
+
+
+
+/* This lecture studies techniques of data manipulation. We focuse studying the SELECT-WHEN-END statements. */
+
+/*
+  To manipulate variables, sometimes we need to impose conditions. One way to do that is to use the IF-THEN statement. In fact,
+one can also use the SELECT-WHEN-END group statement to perform conditional processing. It is a group statement because the syntax
+requires SELECT...END (another group statement we will learn in the future is the DO-END statement).
+
+  The general form of the SELECT-WHEN-END statement is given by the following :
+    SELECT (selct-expression);
+      WHEN (when-expression_1) statement_1;
+      WHEN (when-expression_2) statement_2;
+      ...
+      WHEN (when-expression_n) statement_n;
+      OTHERWISE statement;
+    END;
+
+  Above, the select-expression (which must be enclosed in parentheses, if used) is an optional expression specifying any kind of 
+SAS expression that evaluates to a single value. Each WHEN statement identifies SAS statements that are executed when a particular
+condition is true (there must be at least one WHEN statement). The OTHERWISE statement is optional here. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA mentaldisorder;
+ INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\mentaldisorder.txt';
+ INPUT ID $ Name $ RestHr MaxHr RecHr TimeMin TimeSec Tolerance $;
+RUN;
+DATA mentaldisorder;
+ SET mentaldisorder;
+ TotalTime=(TimeMin*60)+TimeSec;
+ SumSec+TotalTime;
+RUN;
+DATA mentaldisorder;
+  SET mentaldisorder;
+  SELECT; /* check the log to see the words 'Deprived Rest' or 'Sufficient Rest' */
+    WHEN (TotalTime<=2000) PUT 'Deprived Rest';
+    OTHERWISE PUT 'Sufficient Rest';
+  END;
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA mentaldisorder (DROP=RestHr MaxHr TimeMin TimeSec);
+  SET mentaldisorder;
+  SELECT; 
+    WHEN (TotalTime<=2000) Category='Deprived Rest';
+	WHEN (TotalTime>2000 AND TotalTime<=3000) Category='Decent Rest';
+    OTHERWISE Category='Over-Resting';
+  END;
+RUN;
+/*
+  If one doesn't specify a select-expression, SAS will evaluate each when-expression to produce a result of true or false. If the
+result is true, SAS executes the statement in the WHEN statement. If the result is false, SAS proceeds either to the next following
+when-expression in the current WHEN statement, or to the next WHEN statement if no more expressions are present, or to the
+OTHERWISE statement if one is present (that is, SAS performs the action that is indicated in the first true WHEN statement). 
+*/
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA mentaldisorder;
+  SET mentaldisorder;
+  LENGTH Group $ 15; /* without the LENGTH statement the variable Group will be truncated */
+  SELECT (Tolerance); 
+    WHEN ('D') Group='Depression';
+	WHEN ('I') Group='Imbecility';
+    WHEN ('S') Group='Schizephrenia';
+  END;
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+/*
+  Lastly, remember that if more than one WHEN statement has a true when-expression, then only the first WHEN statement is used. 
+Once a when-expression is true, then no other when-expressions are evaluated. 
+/*

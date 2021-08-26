@@ -1,0 +1,165 @@
+
+/* SAS Base9.3 Lecture 4-Reading Datasets I. (in Fixed Fields) */
+
+
+
+/* This lecture studies how to load datasets in fixed fields. */
+
+/* 
+  By fixed fields, we mean values for each variable are in the same location for all records. To read such datasets, remember the
+following rules:
+    1) To reference a SAS library, we use the LIBNAME statement.
+    2) To reference an external file, we use the FILENAME statement.
+    3) To name a SAS dataset, we use the DATA statement.
+    4) To identify an external file, we use the INFILE statement.
+    5) To describe the data variables, we use the INPUT statement.
+    6) To execute the data step, we use the RUN statement.
+*/
+
+/*
+  We have studied the LIBNAME statement in the first lecture and learned to how to use it to reference the permanent SAS libraries
+in which the dataset will be stored. Here we first review what we have learned. But remember that you do not need to use a LIBNAME 
+statement in all situations (say, you don't need to use a LIBNAME statement if you are storing the dataset in a temporary SAS
+dataset or if SAS has automatically assigned the libref for the permanent library that you are using). Also, the path (which is 
+usually the case for the SAS-dataset-library) depends on the operating environments. Different interface library engines require
+different specification of the path. 
+  
+  The general form of the LIBNAME statement with engine specification is given by the following:
+    LIBNAME libref engine 'SAS-dataset-library';
+
+  Here is an example: 
+    LIBNAME clinic spss 'd:\users\qtr\reports\admit.dat';
+      PROC PRINT DATA = clinic.admit;
+      RUN;
+  In the above example, the LIBNAME statement specifies the libref clinic and the engine SPSS for the file admit.dat.
+  Here is another example:
+    LIBNAME clinic 'd:\users\qtr\reports';
+  In this example, the LIBNAME statement assigns the libref clinic to the SAS data library d:\users\qtr\reports in the Windows 
+environment.
+*/
+
+/*
+  We now study the FILENAME statement. Remember that before you can read your raw data, you must point to the location of your
+external file that contains the data. To do so, you use the FILENAME statement to point to this location. Just as you assign a 
+libref by using a LIBNAME statement, you assign a fileref by using a FILENAME statement. Essentially, filerefs perform the same 
+function as librefs: they temporarily point to a storage location for data. However, librefs reference SAS data libraries while
+filerefs reference external files. Note that both the FILENAME and LIBNAME are global statements.   
+  
+  The general form of the FILENAME statement is given by the following:
+    FILENAME fileref 'filename';
+   
+  In the above statement, the fileref is a name that you associate with an external file. The name must be 1-8 characters long. 
+The file-name is the fully qualified name or location of the file. 
+  Here is an example of the FILENAME statement:
+    FILENAME  tests 'd:\users\qtr\reports\tmill.dat';
+  This statement temporarily associates the fileref (called tests) with the external file that contains the data from the exercise 
+stress tests. The complete filename is specified as 'd:\users\qtr\reports\tmill.dat' in the Windows environment. This example
+defines a fully qualified filename. Notice that in the path 'd:\users\qtr\reports\tmill.dat', there is a suffix 'dat'. This is due
+to the fact that the fileref is just a reference to the actual physical file stored in an external drive. So the complete filename
+here includes the actual file name in the external drive. Essentially, what FILENAME does here is to rename the single file in the
+external drive so that the file stored in an external drive other than a SAS library can be read. This is equivalent to use the
+INFILE statement in the DATA step followed by the complete directory of the external file. In this sense, it might be easiser just 
+to use the INFILE statement followed by the path as what the Little SAS Book suggested. However, FILENAME does more than this. For
+example, it can also be used to associate a fileref with an aggregate storage location, such as a directory that contains multiple 
+external files. 
+  Here is an example:
+    FILENAME finance 'c:\users\personal\finances';
+  This says we temporarily associates the fileref finance with the aggregate storage directory c:\users\personal\finances. Notice
+that at the end of the path 'c:\users\personal\finances', there is no suffix like before--this is obvious because now we are 
+assigning a filename to a set of files instead of a single file in an exteral drive. So clearly we won't see things like 'dat' at
+the end of the directory.
+*/
+
+/*
+  We now learn the INFILE statement, which is used to identify the external file. There are two cases that we need to study:
+    1) The first scenario is when the FILENAME statement associates a fileref with an aggregate storage location. In this case, the 
+       fileref is essentially a name of a collection of datasets in an external drive. When we use the INFILE statement, we need to 
+       identify the fileref name right after the INFILE keyword, and then use a parenthesis to incorporate the dataset name(with 
+       suffices such as txt, dat, xls, etc.) enclosed in a quotation mark. 
+    2) The second scenario is when the FILENAME statement associates a fileref with an individual external file. Then in this case
+       things are actually easy: simply use the form INFILE filename.
+  Usually when we want to use the FILENAME statement, the first scenario is more common and it makes more sense to apply the 
+FILENAME statements there. Referencing a fully qualified filename when you want to associate a fileref with an individual external
+file could be a little unnecessary.
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=80;
+FILENAME mov_file '\\sscwin\dfsroot\users\tgao4\Desktop';
+
+                   
+DATA movie; /* this is the 1st scenario--the FILENAME statement identifies an external set of files */
+  INFILE mov_file ('moviedata.txt'); /* the filename here is mov_file, and the dataset name is moviedata.txt */
+  INPUT Month $ Category $;
+RUN;
+PROC PRINT DATA=movie;
+  TITLE '1st scenario';
+RUN;
+FILENAME mo_file '\\sscwin\dfsroot\users\tgao4\Desktop\moviedata.txt';
+DATA movie; /* this is the second scenario */
+  INFILE mo_file; 
+  INPUT Month $ Category $;
+RUN;
+PROC PRINT DATA=movie;
+  TITLE '2nd scenario';
+RUN;
+DATA movie; /* this is the equivalent to the 2nd scenario */
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\moviedata.txt';
+  INPUT Month $ Category $;
+RUN;
+PROC PRINT DATA=movie;
+  TITLE '2nd scenario equivalence';
+RUN;
+
+/*
+  Now we need to officially read the dataset. We focus on the column input style, which specifies actual column locations for data.
+However, column input is appropriate only in certain situations:
+  1) Data must be in fixed fields. Free format means data are not arranged in columns.
+  2) Data must contain only standard character or numeric values(which includes plus or minus sign and decimal points). 
+  Nonstadard values include %, $, comma, data in fraction, inger binary, real binary, and hexadecimal forms.
+  To verify your data, it's good practice to use the OBS= and FIRSTOBS= options in the INFILE statement to either eyeball the data
+after printing them out or read the portion of the data you want to be loaded. 
+*/
+FILENAME mo_file '\\sscwin\dfsroot\users\tgao4\Desktop\moviedata.txt';
+DATA movie; /* this is the second scenario */
+  INFILE mo_file FIRSTOBS=2 OBS=5; 
+  INPUT Month $ Category $;
+RUN;
+PROC PRINT DATA=movie;
+  TITLE;
+RUN;
+
+/*
+  We now we learn basics of creating/transforming/assigning variables. The most important point to remember in this section is that
+when a value that is used with an arithmetic operator is missing, the result of the expression is missing. The assignment statement 
+assigns a missing value to a variable if the result of the expression is missing. To subset dataset, we can also use the famous IF
+condition. Lastly, we can also assign date values to variables in assignment statements by using date constnts. To represent a 
+constant in SAS date form, specify the date as 'ddmmmyy' or 'ddmmmyyyy' followed by a letter D (be sure to enclose the date in 
+quotation marks). 
+*/
+DATA health;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\healthdata.txt';
+  INPUT Age 1-2 Height 4-7 Weight 9-11 Fee 13-14 Gender $ 16 Category $ 18;
+  Date='09jan2014'D; /* this assigns 09/01/2014 to all the observations */
+  Ratio=Height/Age;
+RUN;
+PROC PRINT DATA=health;
+  FORMAT Date mmddyy8.;
+RUN;
+
+/*
+  Lastly, we note that we can use the LABEL and FORMAT statement in the DATA step to make the labels and formats permanent in this
+particular dataset. 
+*/
+DATA health;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\healthdata.txt';
+  INPUT Age 1-2 Height 4-7 Weight 9-11 Fee 13-14 Gender $ 16 Category $ 18;
+  Date='09jan2014'D; /* this assigns 09/01/2014 to all the observations */
+  Ratio=Height/Age;
+  LABEL Ratio='Heigth-Age-Ratio';
+  FORMAT Ratio 8.3;
+RUN;
+PROC PRINT DATA=health;
+  FORMAT Date mmddyy8.;
+RUN;
+

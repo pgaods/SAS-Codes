@@ -1,0 +1,109 @@
+
+/* SAS Base9.3 Lecture 1-Basics and SAS Libraries */
+
+
+
+/* This lecture deals with some basic facts about SAS. We focus on studying SAS libraries. */
+
+/* 
+  We start with a few important facts about SAS:
+    1) SAS is not case sensitive in general. It is only case sensitive when words are enclosed in quotation marks.
+    2) Technically in SAS, rows in a dataset are called observations while columns are called variables. 
+    3) All numeric variables have a default length of 8. 
+    4) A variable in a SAS dataset may have a label, which consists of descriptive text up to 256 characters long.
+    5) SAS dataset names and variable names can be 1-32 characters long. They must begin with a letter or an underscore.
+*/
+
+/*
+  We now learn how to reference SAS files in SAS libraries.
+  To reference a permanent SAS dataset, one should use a two-level name: libref.filename, where:
+    1) libref refers to the name of the SAS data library that contains that file.
+    2) filename refers to the name of the file itself.
+  To reference a temporary SAS dataset, we can simply specify the filename or write WORK.filename. 
+*/
+
+/*
+  We now turn to how to define a SAS library.
+  To define a brand new library, one can assign a library name(libref) to it and specify a path, such as a directory path. To 
+implement this, we use the LIBNAME statement. One can store the LIBNAME statement with any SAS programs so that the SAS dataset
+library is assigned each time the program is submitted. The LIBNAME statement is global, which means that the librefs remain in 
+effect till you modify them, cancel them, or end your SAS session. 
+
+  The general form of the LIBNAME statement is given by the following:
+    LIBNAME libref 'SAS-dataset-library';
+
+  Here, libref is 1-8 characters long, and the SAS-dataset-library enclosed in the quotation mark is the name of a SAS dataset
+library in which SAS data files are stored. It is usually a specification of a path. 
+  Here is an example of LIBNAME statement:
+    LIBNAME clinic 'd:\users\qtr\reports';
+      PROC PRINT DATA = clinic.admit;
+      RUN;
+  The above statement basically assigns the libref clinic to the SAS dataset library d:\users\qtr\reports, and then the program 
+prints out the dataset (called admit) which is stored in the SAS library clinic.
+*/
+
+/*
+  A SAS engine is a set of internal instructions that SAS uses for writing to and reading from files in a SAS library. Depending 
+on the licensing status and operating environment, one can create libraries with various engines. Each engine enables you to read 
+a different file format, including file formats from other software vendors. For some file types, one needs to tell SAS which 
+engine to use; for others, SAS automatically chooses the right engine. The LIBNAME statement can also be used to reference files
+that were created with other software products, such as SPSS and other data management systems besides SAS files. To do so, SAS 
+can read or write these files by using the appropriate engine for that file type. 
+
+  The general form of the LIBNAME statement with engine specification is given by the following:
+    LIBNAME libref engine 'SAS-dataset-library';
+
+  Here engine is the name of a library engine that is supported in your operating environment. 
+  Here is an example: 
+    LIBNAME clinic spss 'd:\users\qtr\reports\admit.dat';
+      PROC PRINT DATA = clinic.admit;
+      RUN;
+  In the above example, the LIBNAME statement specifies the libref clinic and the engine SPSS for the file admit.dat. Note that the
+specification of the physical name of the library differs by different operating environment. Note also that interface library 
+engines support read-only access to BMDP, OSIRIS, and SPSS files, With these engines, the physical filename that is associated with
+a libref is an actual filename, not a SAS library. This is why the path in the above example is 'd:\users\qtr\reports\admit.dat' 
+with the end suffix admit.dat in it.
+
+/*
+  We now learn PROC CONTENTS in order to check the contents of a library or the descriptor information for an individual dataset.
+
+  The general form of the PROC CONTENTS is given by the following:
+    PROC CONTENTS DATA = libref._ALL_ NODS;
+    RUN;
+  
+  Here the keyword _ALL_ requests a listing of all files in the library. If you want all the datasets, use this to be appended to 
+the libref. The NODS option suppresses the printing details about each file when you specify _ALL_. You can specify NODS only when 
+you specify _ALL_.
+*/
+PROC CONTENTS DATA = Mapssas._ALL_ NODS; /* this whole program checks all the datasets without details */
+RUN;
+PROC CONTENTS DATA = Mapssas.Africa; /* this checks the details of the dataset called Africa stored in the SAS library Mapssas */
+RUN;
+PROC CONTENTS DATA = Mapssas.Africa VARNUM; /* the VARNUM option lists everything logically instead of alphabetically */
+RUN;
+
+/*
+  We now learn PROC DATASETS, which is very similar to PROC CONTENTS. They essentially perform the same tasks but PROC DATASETS is
+slightly more powerful. The major difference between these two procedures is that PROC DATASETS is the default for libref in the
+DATA = option. For PROC CONTENTS, the default is either Work or User. Note also that PROC DATASETS is an interactive procedure that 
+requires a QUIT statement rather than a RUN statement at the end. 
+
+  The general form of PROC DATASETS is given by the following:
+    PROC DATASETS;
+      CONTENTS DATA = libref._ALL_ NODETAILS;
+    QUIT;
+
+  Here the CONTENTS statement describes the contents of one or more SAS datasets and prints the directory of the SAS data library.
+The _ALL_ keyword requests a listing of all files in the library(notice that we use a period to append the keyword to the libref.
+NODETAILS, or NODS suppresses the printing of detailed info about each file when you specify _ALL_. It can only be specified when
+the keyword _ALL_ is already present.
+*/
+PROC DATASETS;
+  CONTENTS DATA = Mapssas.Africa;
+QUIT;
+PROC DATASETS;
+  CONTENTS DATA = Mapssas._ALL_ NODS;
+QUIT;
+PROC DATASETS;
+  CONTENTS DATA = Mapssas._ALL_ VARNUM; /* The VARNUM option slows down SAS in general */
+QUIT;

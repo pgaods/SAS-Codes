@@ -1,0 +1,116 @@
+/* SAS Base9.3 Lecture 15-Data Manipulation III. (KEEP and DROP statements) */
+
+
+
+/* This lecture studies techniques of data manipulation. We focuse studying the KEEP and DROP statements and options. */
+
+/*
+  To manipulate variables, sometimes we need to keep or drop some variables. There are general two ways to achive this. One way is
+to use KEEP= or DROP= in the option, while the other way is to use KEEP or DROP statements. To use them as options, simply write
+(DROP=variable_1 variable_2...), or (KEEP=var_1 var_2...). On the other hand, while using the KEEP or DROP statement, there are 
+some rules to be considered: 
+    1) You cannot use DROP statement in SAS procedure steps.
+    2) The DROP statement applies to all output datasets that are named in the DATA statement.
+    3) To exclude variables from some datasets but not from others, place the appropriate DROP= dataset option next to each name
+       of the dataset that is specified in the DATA statement. 
+    4) One should always avoid using the KEEP/DROP options and KEEP/DROP statement as the same time, as it gets SAS confused.
+
+  The general form of a KEEP or DROP statements are given by the following respectively:
+    DROP var1 var2...;
+    KEEP var1 var2...;
+
+  Below, the two programs give us the same result. The first example uses the (DROP= var_list) option wihle the second example
+uses the DROP statement.
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA games;
+ INPUT Month 1 Day 3-4 Team $ 6-25 Hits 27-28 Runs 30-31 Result $ 32-35 Indicator 36-38;
+ CARDS;
+6-19 Columbia Peaches     8  3 win 1 
+6-20 Columbia Peaches    10  5 lose 0
+6-23 Plains Peanuts       3  4 lose 0
+6-24 Plains Peanuts       7  2 lose 0
+6-25 Plains Peanuts      12  8 win 1
+6-30 Gilroy Garlics       4  4 win 1
+7-1  Gilroy Gralics       9  4 win 1
+7-4  Sacramento Tomatoes 15  9 lose 0
+7-4  Sacramento Tomatoes 10 10 lose 0
+7-5  Sacramento Tomatoes  2  3 win 1
+;
+RUN;
+DATA games (DROP= Indicator Result);
+  SET games;
+  LENGTH Eval $ 5; /* we assign 5 because the longest character string in the variable Eval is 'super', which has a length of 5 */
+  RunsToDate+Runs; /* the initial value of Runs is 3, and the initial value of RunsToDate is 0 */  
+  IF RunsToDate<50 THEN Eval='Low';
+    ELSE IF RunsToDate>=50 and RunsToDate<70 THEN Eval='Good';
+	ELSE Eval='Super';
+RUN;
+PROC PRINT DATA=games;
+RUN;
+/*
+  The output looks like the following:
+
+                                                                 Runs
+  Obs    Month    Day           Team            Hits    Runs    ToDate    Eval
+
+    1      6       19    Columbia Peaches         8       3        9      Low
+    2      6       20    Columbia Peaches         0       5       18      Low
+    3      6       23    Plains Peanuts           3       4       20      Low
+    4      6       24    Plains Peanuts           7       2       18      Low
+    5      6       25    Plains Peanuts           2       8       38      Low
+    6      6       30    Gilroy Garlics           4       4       34      Low
+    7      7        1    Gilroy Gralics           9       4       38      Low
+    8      7        4    Sacramento Tomatoes      5       9       57      Good
+    9      7        4    Sacramento Tomatoes      0       0       39      Low
+   10      7        5    Sacramento Tomatoes      2       3       48      Low
+
+*/
+DATA games;
+ INPUT Month 1 Day 3-4 Team $ 6-25 Hits 27-28 Runs 30-31 Result $ 32-35 Indicator 36-38;
+ CARDS;
+6-19 Columbia Peaches     8  3 win 1 
+6-20 Columbia Peaches    10  5 lose 0
+6-23 Plains Peanuts       3  4 lose 0
+6-24 Plains Peanuts       7  2 lose 0
+6-25 Plains Peanuts      12  8 win 1
+6-30 Gilroy Garlics       4  4 win 1
+7-1  Gilroy Gralics       9  4 win 1
+7-4  Sacramento Tomatoes 15  9 lose 0
+7-4  Sacramento Tomatoes 10 10 lose 0
+7-5  Sacramento Tomatoes  2  3 win 1
+;
+RUN;
+DATA games;
+  SET games;
+  KEEP Month Day Team Hits Runs RunsToDate Eval;
+  LENGTH Eval $ 5; /* we assign 5 because the longest character string in the variable Eval is 'super', which has a length of 5 */
+  RunsToDate+Runs; /* the initial value of Runs is 3, and the initial value of RunsToDate is 0 */  
+  IF RunsToDate<50 THEN Eval='Low';
+    ELSE IF RunsToDate>=50 and RunsToDate<70 THEN Eval='Good';
+	ELSE Eval='Super';
+RUN;
+PROC PRINT DATA=games;
+RUN;
+/* 
+  If we did not include RunsToDate here, the dataset eventually would not have had the variable RunsToDate even if we create the
+variable RunsToDate after the KEEP statement! Nor would the dataset contain the variable Eval if we did not put Eval in the KEEP 
+statement! So we have our bottom line here: when using the KEEP or DROP statements, always specify everything you need to keep or 
+drop, regardless when you created a new variable in the DATA step!
+*/
+
+/*
+  We last comment on how to specify the DROP= and KEEP= dataset options in the SET statement. So far, we have learned how to write
+DROP= and KEEP= options in the dataset options anywhere you name a SAS dataset. However, using the DROP= AND KEEP= options when 
+reading an existing dataset requires that you decide where to specify these options. You can specify them in either the DATA or
+the SET statement, depending on whether or not you want to process values of the variables in that DATA step:
+  1) If you don't process certain variables and you don't want them to appear in the new dataset, then you should specify them in 
+     the SET statements. 
+  2) If you do need to process a variable in the original dataset, you must specify the variable in the DATA statement. Otherwise,
+     the statement that is using the variable for processing causes an error. This implies that when used in the DATA stateent, 
+     the DROP= option simply drops the variable(s) from the new dataset, while the dropped variables are still going to be read 
+     from the original dataset. We generally recommend putting DROP= in the DATA statement, even though it may computationally be
+     costly sometimes.
+*/

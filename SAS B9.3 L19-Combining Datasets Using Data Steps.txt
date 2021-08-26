@@ -1,0 +1,416 @@
+/* SAS Base9.3 Lecture 19-Combining Datasets Using Data Steps */
+
+
+
+/* This lecture studies techniques of combining datasets. */
+
+/*
+  To comebine datasets, the first thing we will be learning is to recognize the ways of combining datasets. In traditional DATA
+steps of SAS, there are four ways of combining datasets which are all listed below (with their keywords in parentheses):
+    1) One-to-one reading (SET):
+       This creates observatiosn that contain all of the variables from each contributing dataset. It combines observations based
+       on their relative position in each dataset.
+    2) Concatenating/Vertical stacking (SET): 
+       This apends the observations from one dataset to another (vertically). For some observations, there might be missing values.
+    3) Interleaving (SET+BY):
+       This intersperses observations from two or more datasets, based on one or more common variables.
+    4) Match-merging (MERGE+BY):
+       This matches observations from two or more datasets into a single observation in a new datset according to the values of a 
+       common variable. For this type of joining, we may encounter missing variables as well. 
+  Below, we will create a few simple datasets so that we will see what the combined datasets look like. For simplicity, each of the
+dataset is named D- in the SAS program. We will comment on how SAS processes data and the weaknesses of each way of data combining. 
+*/
+
+/*
+  I. One-to-one reading:
+  When we perform one-to-one reading, several things happen: 1) The new dataset after combining contains all the variables from 
+all the input datasets. If the datasets contain variables that have the same names, the values that are read in from the last 
+dataset overwrite the values that were read in from earlier datasets. 2) The number of observations in the new dataset is the 
+number of the observations in the smallest original dataset. Observations are combined based on their realtive position in each 
+dataset, that is, the first observation in one dataset is joined with the first observation in the other, and so on. The DATA step 
+stops after it has read the last observation from the smallest dataset. 
+
+  The General form of one-to-one reading is given by the following:
+    DATA dataset-name;
+      SET D1;
+      SET D2;
+    RUN;
+
+  Here, the dataset-name is the output dataset to be created after combining. D1 and D2 are two specific existing datasets to be 
+read. We will see an example below.
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I; /* the MESGLEVEL=I option makes SAS logs more specific and easy to debug */
+DATA D1;
+  INPUT ID $ VarA $ VarB $;
+  CARDS;
+  11 A1 B1
+  12 A2 B2
+  13 A3 B3
+  15 A5 B5
+  18 A8 B8
+  19 A9 B9
+  ;
+RUN;
+DATA D2;
+  INPUT ID $ VarA $ VarB $;
+  DATALINES;
+  11 A1 B1
+  12 A2 B2
+  16 A6 B6
+  17 A7 B7
+  18 A8 B8
+  ;
+RUN;
+DATA onetoone;
+  SET D1;
+  SET D2; /* the second SET statement overwrites the first one */
+RUN;
+PROC PRINT DATA=onetoone;
+RUN;
+/*
+  We now give another example. Suppose the two SAS datasets D1 and D2 look like the following:
+
+       D1             D2
+    Var VarA       Var VarB 
+    1   A1         2   B1
+    3   A2         4   B2
+    5   A5
+
+  Then the first SET statement reads one observation from dataset D1, namely, '1 A1'. Then the second SET statement reads another 
+single observation from D2. But now the value in D2 overwrites that of D1. So in the final dataset 'onetoone', we have: '2 A1 B1' 
+(A1 is not overwritten yet 'Var' is overwritten). Next, SAS goes back to the first SET statement after the first data loop, so 
+the second observation is: '3 A2'. Finally, the second SET statement overwrites the first again, so we have: '4 A2 B2'. The final 
+dataset contains only two observation now. Because '4 B2' is the last observation in the smallest dataset, SAS processing stops 
+here. Note that because of this overwriting issue, this kind of dataset combination is rarely used. In all, the combined dataset 
+looks like the following: 
+     Var VarA VarB
+     2    A1   B1
+     4    A2   B2
+
+Below we give a more complicated example. One should try to figure out what happens with each step. 
+*/
+DATA patients;
+  INPUT ID Sex $ Age;
+  CARDS;
+  1129 F 48
+  1387 F 57
+  2304 F 16
+  2486 F 63
+  4759 F 60
+  5438 F 42
+  6488 F 59
+  9012 M 39
+  9125 M 59
+  ;
+RUN;
+DATA measures;
+  INPUT ID Height Weight;
+  DATALINES;
+  1129 61 139
+  1387 56 182
+  2304 69 102
+  5438 52 123
+  6488 56 111
+  9125 68 119
+  ;
+RUN;
+DATA one2one;
+  SET patients;
+    IF Age<60;
+  SET measures;
+    IF Height<62;
+RUN;
+PROC PRINT DATA=one2one;
+RUN;
+
+/*
+  II. Concatenating:
+  Contenating datasets are basically vertically stacking each dataset onto one another. In this process, we may generate missing 
+values, and their might be duplicates if the two datasets contain exactly the same observation for each variable. The final dataset
+contains all of the variables and all of the observations for all of the input datasets.
+
+  The general form of data concatenation is given by the following:
+    DATA dataset-name;
+      SET D1 D2...Dn;
+    RUN;
+
+  To see what concatenation looks like, suppose we have two datasets D1 and D2 as follows:
+
+       D1             D2
+    Var VarA       Var VarB 
+    1   A1         2   B2
+    3   A3         4   B4
+    5   A5         5   B5
+
+  After concatenation, the combined dataset looks like the following: 
+     
+     Var VarA VarB
+     1    A1
+     3    A3
+     5    A5
+     2         B2
+     4         B4
+     5         B5
+
+  Note that the total number of observations are the number of observations combined from all datasets. But there mhight be missing 
+values and duplicates. The order of the observations is deteremined by the order of the list of the old datasets.
+*/
+DATA D2;
+  INPUT ID $ VarA $ VarB $;
+  DATALINES;
+  11 A1 B1
+  12 A2 B2
+  16 A6 B6
+  ;
+RUN;
+DATA D3;
+  INPUT ID $ VarA $ VarB $;
+  DATALINES;
+  11 A1 B1
+  12 A2 B2
+  17 A7 B7
+  ;
+RUN;
+DATA concat;
+  SET D1 D2 D3;
+RUN;
+PROC PRINT DATA=concat;
+  TITLE "Data After Concatenation with Duplicates";
+RUN;
+PROC SORT DATA=concat OUT=concatnodup NODUP; 
+  BY DESCENDING ID;
+    /* PROC SORT with the option NODUP helps us get rid of all the duplicates if data are sorted properly by enough variables */
+RUN;
+PROC PRINT DATA=concatnodup;
+  TITLE "Data After Concatenation without Duplicates";
+RUN;
+TITLE;
+/*
+  Here is a side note: a common misconception of the NODUP SORT option is that it will compare each observation in a dataset with 
+every other observation in order to eliminate duplicate observations. This NODUP option causes PROC SORT to compare all variable 
+values for an observation to the PREVIOUS one written to the output data set. Therefore, when using the NODUP option, the dataset 
+must be sorted by enough variables to ensure that the observations are in the correct order to remove all duplicates.
+  The following example shows how a duplicate observation can be written to the output dataset when using the NODUP option, and the 
+dataset has not been sorted by enough variables:
+
+    X    Y
+    1    1
+    1    2
+    1    1
+
+  If the dataset is only sorted by the variable X, then PROC SORT will write the first record out, compare the second record to the 
+first and write the second out, because it is not the same as the first.  It will then compare the third record to the second and 
+write it to the output dataset because it is not the same as the second.  You now have duplicate observations on the output dataset 
+because observation 1 and observation 3 are the same. If you sort by both X and Y then the data would be in the following order and 
+the duplicate observation would not have occurred:
+
+    X    Y
+    1    1
+    1    1
+    1    2
+
+  Please see http://support.sas.com/kb/1/566.html for more information.  
+*/
+
+/*
+  III. Interleaving:
+  If you use a BY statement while concatenating datasets, then the result is interleaving. Interleaving intersperses observations 
+from two or more datasets based on one or more common variables. The BY variable must be pre-sorted first. Naturally, there will 
+be missing values for some variables and duplicates as that of the case in concatenation. 
+
+  The general form of interleaving datasets is given by the following:
+    DATA dataset-name;
+      SET D1 D2...Dn;
+      BY variables(s);
+    RUN;
+
+*/
+DATA patients;
+  INPUT ID Sex $ Age;
+  CARDS;
+  1129 F 48
+  1387 F 57
+  2304 F 16
+  ;
+RUN;
+DATA measures;
+  INPUT ID Height Weight;
+  DATALINES;
+  1129 61 139
+  1387 56 182
+  2304 69 102
+  5438 52 123
+  6488 56 111
+  9125 68 119
+  ;
+RUN;
+DATA interleave;
+  SET patients measures;
+  BY ID; /* the default is ascending order */
+RUN;
+PROC PRINT DATA=interleave;
+RUN;
+
+/*
+  IV. Match-merging:
+  So far, we have learned how to combine datasets based on the order of the observations in the input datasets. But sometimes you 
+need to combine observations from two or more datasets into a single observation in a new dataset according to the values of a 
+common variable. This is called match-merging. Note that if variables that have the same name appear in more than one dataset, then
+the variable from the first dataset that contains the variable (in the order listed in the MERGE statement) determines the length 
+of the variable. In a word, basic DATA step match-merging produces an output dataset that contains values from all observations in
+all input datasets. If an input dataset doesn't have any observations for a particular value of the same-named variable, then the 
+observation in the output dataset contains missing values for the variables that are unique to that input dataset.
+
+  The general form of matching-mering is given by the following:
+    DATA dataset-name;
+      MERGE D1 D2;
+      BY variable(s);
+    RUN;
+  
+  Of course, before we use the MERGE statement, both of the datasets D1 and D2 must be pre-sorted in order of the values of the BY 
+variables(s). To see what match-merging look like, consider:
+  
+       D1             D2
+    Var VarA       Var VarB 
+    1   A1         1   B1
+    2   A2         4   B4
+    3   A3         5   B5
+    5   A5         5   B7
+    5   A6         2   B2 
+
+  After sorting and merging merging, the combined dataset looks like the following: 
+
+     Var   VarA   VarB  
+     1      A1     B1
+     2      A2     B2 
+     3      A3
+     4             B4
+     5      A5     B5
+     5      A6     B7
+
+  To understand this match-merging process, we now go over what SAS does in the background. Recall there are two phases of reading 
+data: the compilation phase and the execution phase. During the compilation phase, SAS will read the descriptor portions of the 
+datasets that are listed in the MERGE statement. It reads the rest of the DATA step program, and creates the program data vector 
+(PDV) for the merged dataset. It then assigns a tracking pointer to each dataset that is listed in the MERGE statement. 
+  After compiling the DATA step, SAS sequentially match-merges observations by moving the pointers down each observation of each 
+dataset and checking to see whether the BY values match:
+    1) If yes, the observations are written to the PDV in the order in which the datasets appear in the MERGE statement. Values of 
+       any same-named variable are overwritten by values of the same-named variable in subsequent datasets. SAS writes the combined
+       observation to the new dataset and retains the values in the PDV until the BY value changes in all the datasets. 
+    2) If no, SAS determines which of the values comes first and writes the observation that contains this value to the PDV. Then 
+       the contents of the PDV are written to the new dataset. 
+  As for handling unmatched observations and missing values, by default, all observations that are written to the PDV, including 
+observations that've missing data and no matching BY values, are written to the output dataset. If an observation contains missing
+values for a variable, then the observation in the output dataset contains the missing values as well. Observations that have 
+missing values for the BY variable appear at the top of the output dataset. Lastly, if an input dataset doesn't have a matching BY 
+variable, then the observation in the output dataset contains missing values for the variables that're unique to that input datset. 
+*/
+
+/*
+  We now learn how to rename variables. Recall that sometimes you might have same-named variables in more than one input dataset
+when we are using the MERGE statement. In this case, those DATA step match-mergings overwrite values of the like-named variable in 
+the first dataset in which it appears with values of the like-named variable in the subsequent datasets. 
+
+  The general form of the RENAME= option in the DATA step is the same as that of the KEEP= or DROP= options. It is usually placed 
+in the MERGE statement enclosed in parentheses used in the MERGE statement. We now give an example. 
+*/
+DATA patients;
+  INPUT ID Sex $ Age Weight;
+  CARDS;
+  1129 F 48 23
+  1387 F 57 23
+  2304 F 16 23
+  ;
+RUN;
+DATA measures;
+  INPUT ID Height Weight;
+  DATALINES;
+  1129 61 139
+  1387 56 182
+  2304 69 102
+  5438 52 123
+  6488 56 111
+  9125 68 119
+  ;
+RUN;
+DATA merged;
+  MERGE patients(RENAME=(Weight=Weightb4))
+        measures(RENAME=(Weight=Weightafter));
+  BY ID;
+RUN;
+PROC PRINT DATA=merged;
+RUN;
+
+/*
+  When we merge datasets, another common problem is to figure out how to exclude unmatched observations. By default, DATA step 
+match-merging will combine all observations in all input datasets. To exclude unmatched observations from your output dataset, you 
+can use the IN= option and the subsetting IF statement in the DATA step. In particular, the IN= dataset option creates and names a
+variable that indicates whether the dataset contributed data to the current observation. 
+
+  The general form of the IN= dateset option is given by the following:
+    (IN=variable-name)
+
+  Here, the variable-name is the variable to be created. The whole IN= option must be enclosed in parentheses. 
+  We now give an example below. Suppose we have clinical two clinical datasets to be read. The first dataset ('patients') have 
+pre-measures and the second dataset (called 'result') have post-measures after the treatment. We want to combine them into one 
+single dataset that contains only info that both dataset have. Below, in the MERGE statement, we create two temporary variables 
+temp1 and temp2. Here, temp1 is set to 1 if an observation from the first dataset (patients) contributes to the current observation
+in the combined dataset, and temp2 is set to 1 if an observation from the second dataset (a.k.a., the result) contributes to the 
+current observation in the combined dataset. Otherwise, they are set to 0. These two variables here are only for tracking purposes.
+They will not be written out in the SAS dataset. 
+*/
+DATA patients;
+  INPUT ID Sex $ Age measure;
+  CARDS;
+  1129 F 48 23
+  1387 F 57 23
+  2304 F 16 23
+  9125 M 12 10
+  9127 M 34 29
+  ;
+RUN;
+DATA result;
+  INPUT ID Height measure;
+  DATALINES;
+  1129 61 139
+  1387 56 182
+  2304 69 102
+  5438 52 123
+  6488 56 111
+  9125 68 119
+  ;
+RUN;
+DATA clinic;
+  MERGE patients (IN=temp1 RENAME=(measure=pre_measure)) 
+        result (IN=temp2 RENAME=(measure=post_measure));
+  BY ID;
+  IF temp1=1 AND temp2=1; /* these variables temp1 and temp2 are used for tracking purposes */
+RUN;
+PROC PRINT DATA=clinic;
+RUN;
+/*
+  We now give a short summary for the time being. To use a dataset options, you can simply put it between parentheses directly 
+following the dataset name. Below are the most frequently used dataset options wehave encountered so far:
+
+        SAS Command                                      Functions of Options
+   KEEP = variable-list                         -tells SAS which variables to keep
+   DROP = variable-list                         -tells SAS which variables to drop
+   RENAME = (old-variable = new-variable)       -tells SAS to rename certain variables
+   FIRSTOBS = n                                 -tells SAS to start reading at observation n
+   OBS = m                                      -tells SAS to stop reading at observation m
+   IN = new-variable-name                       -creates a temporary variable for tracking whether
+                                                 that dataset contributed to the current observation
+                                                 (see the next few coming examples)
+
+  These topics are also covered in the textbook 'Little SAS' (Chapter 6). 
+  Some cautionary note here: as for the DROP= and KEEP= options, when we are doing match-merging, the place we put the DROP= and 
+KEEP= options are very important. In general, we can place them in either the DATA statement or the MERGE statement. The rule is as
+follows: if we don't want to process certain variables and we don't want them to appear in the new dataset, then we should specify 
+them in the DROP= option in the MERGE statement; if we do need to process a variable in the original dataset, then we must specify 
+the variable in the DROP= option in the DATA statement. Just as before, the rule-of-thumb here is that if you want to process the 
+variable, then put these options in the DATA step. Otherwise, put them in a specific SAS statement which lies within the DATA step. 
+*/
+
+

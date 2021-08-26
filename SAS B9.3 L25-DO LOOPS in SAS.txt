@@ -1,0 +1,274 @@
+/* SAS Base9.3 Lecture 25-DO LOOPS in SAS  */
+
+
+
+/* This lecture studies the DO LOOPS in SAS. */
+
+/* 
+  We now learn how to write looping logic. In SAS language, DO loops process a group of statements repeatedly rather than once. This
+can greatly reduce the number of statements required for a repetitive calculation in SAS. In this lecture we cover a few DO loops 
+syntaxes to cover the essentials of the looping idea.
+*/
+
+/*
+  I. The Basic DO Loop :
+  The DO loops syntax generally requires an index value, a start value and a stop value, and the the loop ends with an END statement.
+
+  The general form of the DO loops is given by:
+    DO index = start TO stop BY increment;
+      SAS statement_1;
+      SAS statement_2;
+      ...
+      SAS statement_k;
+    END;
+
+  Here, the start, stop and increment values are set upon entry into the DO loop. They cannot be changed during the processing of the
+DO loops, and they can be numbers, variables, or SAS expressions. Note also that the value of hte index variable can be changed within
+the loop. The BY clause is optional here. If not specified, the increment=1. If it's a negative value, then we are decrementing the
+process. We now give an example to illustrate how SAS executes the DO loop. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I YEARCUTOFF=1920; 
+DATA finance1;
+  amount=1000;
+  rate=0.075/12;
+  DO month=1 TO 12;
+     earned+(amount+earned)*rate;
+  END;
+RUN;
+DATA finance2;
+  amount=1000;
+  rate=0.075/12;
+  DO month=1 TO 12;
+     earned+(amount+earned)*rate;
+	 OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=finance1;
+TITLE "Finance 1: pay attention to the index variable 'month'! ";
+RUN;
+PROC PRINT DATA=finance2;
+TITLE "Finance 2: pay attention to the index variable 'month'!";
+RUN;
+/*
+  Let's look at how we generate the dataset finance1 first. It is an example that calculates how much interest was earned each month
+for a one-year investment given the principal 1000 dollars at an interest rate 0.075/12=0.00625. Firstly, the DATA step does not read 
+data from an external source. When submitted, it compiles and then executes only once to generate data. During the compilation, the
+program data vector is created for the working dataset. So everything initially is missing:
+
+    _N_  Amount  Rate    month  Earned
+     .   .        .        .      .
+
+  When the DATA step executes, the values of the variable Amount and Rate are assigned. So now the program data vector looks like:
+
+    _N_  Amount  Rate    month  Earned
+     1   1000   0.00625   .      .
+
+  Next, the DO loop executes. During each execution of the DO loop, the value of the earned variable is updated, recalculated, and 
+added to the previous value. Then the value of the month variable is incremented. On the 12th execution, the program data vector looks
+like this:
+
+    _N_  Amount  Rate    month  Earned
+     1   1000   0.00625   12    77.6326
+
+  After the 12th execution, the value of month is incremented to 13. Because 13 execeeds the stop value of the iterative DO statement, 
+the DO loop stops executing, and the processing continues to the next DATA step statement. the end of the DATA step is thus reached, so
+the values are written to the working dataset Finance1. This is why if you do a PROC PRINT on the dataset Finance1, the month value is 
+13 and there is only one record:
+
+    _N_  Amount  Rate    month Earned
+     1   1000   0.00625   13   77.6326
+
+  In contrast, if we have the output statement inside the loop, each iteration is written out to the dataset and the month value will be
+stopped at 12. This is because the OUTPUT statement overides the automatic output. So each iteration is written out while looping. Note 
+that both datasets have the same value of Earned to be 77.6326.
+*/
+
+/*
+  Similarly, we can decrement the DO loops by using the BY statement, e.g., DO index=5 TO 1 BY -1. You can also specifiy how many times
+a DO loop executes by listing items in a series. Even more, the index variable can be either numeric or character. DO loops are flexibile
+tools and you can, of course, nest DO loops within DO loops. Below are some examples:
+*/
+DATA finance3;
+  amount=1000;
+  rate=0.075/12;
+  DO month=2, 3, 5, 7, 11;
+     earned+(amount+earned)*rate;
+  END;
+RUN;
+PROC PRINT DATA=finance3;
+TITLE "Finance 3: Prime Months Data without OUTPUT Statement ";
+RUN;
+DATA finance4;
+  amount=1000;
+  rate=0.075/12;
+  DO month=2, 3, 5, 7, 11;
+     earned+(amount+earned)*rate;
+	 OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=finance4;
+TITLE "Finance 4: Prime Months Data with OUTPUT Statements ";
+RUN;
+DATA finance5;
+  amount=1000;
+  rate=0.075/12;
+  DO month='JAN', 'MAR', 'MAY', 'JUL', 'NOV';
+     earned+(amount+earned)*rate;
+	 OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=finance5;
+TITLE "Finance 5: index variable here is character";
+RUN;
+DATA finance6;
+  amount=1000;
+  rate=0.075/12;
+  DO year =2014, 2015;
+    DO month=1 TO 12;
+      earned+(amount+earned)*rate;
+	  OUTPUT;
+    END;
+  END;
+RUN;
+PROC PRINT DATA=finance6;
+TITLE "Finance 6: nesting loops";
+RUN;
+
+/*
+  We now learn how to use the DO...UNTIL logic. It executes statements in a loop reptitively until a condition is met (true).
+
+  The general form of the DO...UNTIL statement is given by:
+    DO UNTIL(SAS expression);
+      SAS statement_1;
+      SAS statement_2;
+      ...
+      SAS statement_k;
+    END;
+
+  For DO...UNTIL statement, the expression is not evaluated until the bottom of the loop, so a DO UNTIL loop always executes at least
+once. When the expression is evaluated as true, the DO loop is not executed again. We now give an example in which we want to know how 
+many years it will take to earn $50000 dollars if you deposit $2000 dollars each year into an account that earns 3% interest rate. The 
+DATA step that follows uses a DO UNTIL statement to perform the calculation until the value is reached. So each iteration represents 1
+year of earning.   
+*/
+DATA finance7;
+  interest_Rate=0.03;
+  DO UNTIL (Capital>=50000);
+    capital+2000;
+	capital+capital*0.03; /*compounding*/
+	year+1;
+	OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=finance7;
+TITLE "Finance 7: using DO UNTIL statement";
+RUN;
+/*
+  We now give a complicated example to use DO...UNTIL statement and DO loop to calculate the 401(k) accumulation over years. Suppose we
+are now given the annual inflation rate, annual asset returns rate before tax, annal asset returns after tax, age, and the income tax 
+rate after retirement. We want to build a retirement calculator so as to know the profile of one's retirement, assuming the individual
+initially has starting cash saving to be $10000, starting asset holdings to be $5000 and starting 401k $4500 and starting annual budget
+to be $36000 at the age of 28 (here assets represent bonds, stocks, mutual funds, etfs and all other asset combinations including cash
+and assets in 401k account):
+   Age 	   Annual Budget	 Annual Cash Saving     Annual Assets Holdings  	Annual 401k  	 Annual Total Assets 
+   28	    $36,000.00 	          $10,000.00 	         $5,000.00 	             $4,500.00 	         $19,500.00 
+
+Given a set of interest rate, inflation, assets return rate (before and after tax), we want to build a profile of incomes and assets
+holdings over the years and see how his or her retirement landscape looks like. Assume that the person retires at the age of 68 and 
+starts to max out his or her 401k contribution at the age of 38 (assume that amount is 20000), we have the following: 
+*/
+DATA retirement_calculator;
+  age=28;
+  budget=36000; /*initial annual expense at the age of 28*/
+  CD=10000; /*initial savings at a bank*/
+  assets=5000; /*initial securities holding (stocks, bonds, mutual funds, etc.*/
+  a401k=4500; /*initial 401k amount*/
+  inflation=0.039; /*annual inflation rate*/
+  return_b4tax=0.059; /*assets return before tax*/
+  return_aftax=0.048; /*assets return after tax*/
+  DO UNTIL(age>=68);
+    age+1;
+    budget+budget*inflation;
+	CD=(CD+2000)*(1-inflation);
+	assets=(assets+3000)*(1+return_aftax)*(1-inflation); /*we contribute 3000 to stocks, bonds and mutual funds etc. annually*/
+	IF age<38 THEN DO;
+      a401k=(a401k+5000)*(1+return_b4tax)*(1-inflation);
+	end;
+	ELSE IF age>=38 THEN DO;
+      a401k=(a401k+20000)*(1+return_b4tax)*(1-inflation);
+    END;
+	total=CD+assets+a401k; /*annual total revenue*/
+	OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=retirement_calculator;
+TITLE 'Retirement Picture';
+RUN;  
+
+/*
+  The DO...WHILE statement is similar. The statement executes SAS statements in a DO loop repetively while a specified condition is true. 
+
+  The general form of the DO...WHILE statement is given by:
+    DO WHILE(SAS expression);
+      SAS statement_1;
+      SAS statement_2;
+      ...
+      SAS statement_k;
+    END;
+
+*/
+DATA finance8;
+  interest_Rate=0.1;
+  capital=0;
+  OUTPUT; /* this ensure year 0 information is included in the dataset*/
+  DO WHILE (Capital<=7000);
+    capital+1000;
+	capital+capital*interest_rate; /*compounding*/
+	year+1;
+	OUTPUT;
+  END;
+RUN;
+PROC PRINT DATA=finance8 NOOBS;
+TITLE "Finance 8: using DO while statement";
+RUN;
+
+/*
+  Lastly, we learn how to use iterative processing to create a random sample. The key is to use the POINT= option in the data step.
+*/
+DATA fees;
+  INPUT Month $ Revenue Cost;
+  CARDS;
+  1 600 200
+  2 600 301
+  3 600 300
+  4 700 200
+  5 500 100
+  6 800 900
+  7 1000 600
+  8 1200 1100
+  9 400 200
+  10 500 600
+  11 900 900
+  12 343 220
+  13 980 1190
+  14 235 4441
+  15 369 2379
+  ;
+RUN;
+DATA sample;
+  DO i=1 to 15 by 3;
+    SET fees POINT=i;
+	OUTPUT;
+  END;
+  STOP;
+RUN;
+PROC PRINT DATA=sample;
+TITLE 'Sample';
+RUN;
+PROC PRINT DATA=fees;
+TITLE 'Original Fee Schedule';
+RUN;
+
+ 

@@ -1,0 +1,79 @@
+/* SAS Base9.3 Lecture 9-PROC MEANS */
+
+
+
+/* This lecture studies how to use PROC MEANS to create summary reports and descriptive statistics. */
+
+/*
+  PROC MEANS is an advanced version of PROC SUMMARY, so that the former is way more common than the latter. The difference between 
+the 2 procedures is that PROC MEANS produces a report by default (one can use the optoin NOPRINT to suppress the default report).
+In contrast, to produce a report in PROC SUMMARY, you must include a PRINT option in the PROC SUMMARY statement. This is why almost
+all the time PROC MEANS is better. 
+  
+  The general form of the PROC MEANS is given by the following:
+    PROC MEANS DATA= dataset-name stats-keywords MAXDEC=n options;
+      VAR var_1 var_2...var_n;
+      CLASS var_1 var_2...var_n;
+      BY var_1 var_2;
+      OUTPUT OUT= SAS-dataset-name statskeyword=variable-name(s);
+    RUN;
+
+  Here the stats-keyword in the PROC MEANS statement specifies a (list of) statistics to be computed. The options control the content,
+analysis, and appearance of the output. The MAXDEC=n option specifies the length of the decimal places in the report. 
+  The stats-keywords are abundant in PROC MEANS. The default is mean, standard deviation, min, max and N (the number of nonmissing
+values). Other possible candidates include CLM (two-sided confidence limit for the mean), CV (coefficient of variation), KURRTOSIS,
+NMISS (number of observations with missing values), RANGE, SKEWNESS, STD, STDERR (or STDMEAN), SUMWGT (sum of the Weight variable
+values),USS (uncorrected sum of squares), MEDIAN, P1 (1st percentile), P5, P10, Q1 (1st quartile), QRANGE (interquartile range),
+PROBT (probability of a greater absolute value for the t-value), T(student's t for testing the hypothesis that the population mean
+is 0) etc. 
+  The CLASS statement lists categorical variables for group processing (so is the BY variables, and of course these variables must
+be pre-sorted). Lastly, in the OUTPUT OUT statement, the statskeyword=variable-name(s) specifies the names of hte variable that 
+will be created to contain the values of the summary statistics. These variables must be listed in the VAR statement. 
+*/
+
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+
+DATA flights;
+  INPUT Flight $ Departure $ Destination $ Revenue Cost;
+  CARDS;
+  821 BUDAPEST LON 1400 210
+  271 BUDAPEST PAR 1308 289
+  271 BUDAPEST PAR 1098 451
+  821 BUDAPEST LON 1783 234
+  821 BUDAPEST LON 1732 298
+  278 PRAGUE LON 1897 276
+  278 PRAGUE LON 1876 245
+  278 PRAGUE LON 1432 222
+  ;
+RUN;
+DATA f_budget;
+  SET flights;
+  Profit=Revenue-Cost;
+RUN;
+PROC SORT DATA=f_budget;
+  BY Flight Departure Destination;
+RUN;
+PROC PRINT DATA=f_budget;
+RUN;
+PROC MEANS DATA=f_budget;
+  VAR Revenue Cost Profit;
+  CLASS Flight;
+RUN;
+PROC MEANS DATA=f_budget MEAN VAR STD NMISS;
+  VAR Revenue Cost Profit;
+  CLASS Flight Departure Destination;
+RUN;
+PROC MEANS DATA=f_budget NOPRINT;
+  VAR Revenue Cost Profit;
+  CLASS Flight;
+  OUTPUT OUT=budget 
+                   MEAN=average_rev average_cost average_profit
+                   MIN=min_rev min_cost min_profit
+                   MAX=max_rev max_cost max_profit;
+    /* when SAS outputs the PROC MEANS output, it automatically creates 2 additional variables: _TYPE_ and _FREQ_ */
+    /* if no statskeyword= is specified, then the 5 default summary statistics are all produced */
+RUN;
+PROC PRINT DATA=budget;
+RUN;

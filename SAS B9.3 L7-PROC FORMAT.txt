@@ -1,0 +1,107 @@
+
+/* SAS Base9.3 Lecture 7-PROC FORMAT */
+
+
+
+/* This lecture studies how to use PROC FORMAT to create formats and permantently store them. */
+
+/* 
+  We first learn how to create user-defined formats.
+  
+  The general form of the PROC FORMAT is given by the following:
+    PROC FORMAT options;
+      VALUE user-defined-format-name1;
+        range11='label11'
+        range12='label12'
+        ...
+        range1k='lable1k'
+      VALUE user-defined-format-name2;
+        range21='label21'
+        range22='label22'
+        ...
+        range2k='label2k'
+      ...
+    RUN;
+  
+  Here, the options may include 1) LIBRARY=libref (which specifies the libref for a SAS datalibrary that contains a permanent 
+catalog in which user-deinfed formats are stored), or 2) FMTLIB (which prints the contents of a format catalog). 
+  Note that any time you use PROC FORMAT to create a format, the format is stored in a format catalog. If the SAS data library
+does not already contain a format catalog, SAS automatically creates one. If you do not specify the LIBRARY=libref option, then
+the formats are stored in a default format catalog named Work.Formats. Note also that when you associate a permanent format with
+a variable in a subsequent DATA or PROC step, you use the LIBRARY=libref to reference the location of the format catalog. 
+  In the meantime, the VALUE statement specifies the format name and its range specifies a single value/range/range of character
+values/list of unique values separated by commas. When the specified values are character values, they must be enclosed in a 
+quotation mark and must match the case of the variable's values. The format's name must also start with a dollar sign $. 
+  The user-defined-format-name must satisfy the following criteria:
+    1) It begin with a dollar sign if the format applies to character data.
+    2) It cannot be longer than 8 characters.
+    3) It cannot be the name of an exisiting SAS format.
+    4) It cannot end with a number.
+    5) It does not end in a period when specified in the VALUE statement.
+  The range specifies one or more variable values and a character string or an existing format.
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=80 NODATE;
+PROC FORMAT;
+  VALUE $grade
+        'A'='Good'
+		'B'-'D'='Fair'
+		'F'='Poor'
+		;
+  VALUE statusfmt
+        1='Freshie'
+		2='Sophomore'
+		3='Junior'
+		4='Senior'
+		;
+  VALUE agefmt
+        18-<21='teen' /* this reads as from 18 to less than 21 (so 21 is not included) */
+		21-<100='adult'
+		;
+RUN;
+DATA student_record;
+  INPUT grade $ status age;
+  CARDS;
+  A 1 18
+  B 2 20
+  A 4 23
+  A 4 18
+  C 3 19
+  C 4 25
+  B 1 23
+  A 4 22
+  ;
+RUN;
+DATA unfmt_record;
+  SET student_record;
+RUN;
+PROC PRINT DATA=unfmt_record;  
+  TITLE 'unformatted records';
+RUN;
+DATA fmt_record;
+  SET student_record;
+  FORMAT grade $grade. status statusfmt. age agefmt.; /* note that the FORMAT statement is always global */
+  TITLE 'formatted records';
+RUN;
+PROC PRINT DATA=fmt_record;  
+RUN;
+/* 
+  Note that for the PROC FORMAT step, when it comes to numerical values, one can use the keyword LOW and HIGH to replace specific
+values. The keyword OTHER can also be used if there are exceptions to the range specified. So in the above example, one can also 
+construct the format in the following way:
+    PROC FORMAT;
+      VALUE agefmt
+          LOW-<21='teen' 
+          21-<HIGH='adult'
+          OTHER='unknown'
+          ;
+    RUN; 
+  Also, note that all formats contain periods, but only user-defined formats invariably require periods at the end of the name.
+*/
+
+/*
+  Lastly, to reference your formats, one can store these user-defined formats in a format catalog. We do not recommend doing this
+because storing formats could be confusing to other researchers on a team. One can delete formats by using PROC CATALOG. For more
+information on this, one can check the SAS support website.
+*/

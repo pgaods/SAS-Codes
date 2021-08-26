@@ -1,0 +1,60 @@
+
+/* SAS Base9.3 Lecture 6-Reading Datasets II. (DATA _NULL_) */
+
+
+
+/* This lecture studies how to use DATA _NULL_ trick. */
+
+/* 
+  We first learn how to read data in fixed fields using the DATA _NULL_.
+  Remember in fixed fields, values for each variable are in the same location for all records. To read such datasets, recall:
+    1) To reference a SAS library, we use the LIBNAME statement.
+    2) To reference an external file, we use the FILENAME statement.
+    3) To name a SAS dataset, we use the DATA statement.
+    4) To identify an external file, we use the INFILE statement.
+    5) To describe the data variables, we use the INPUT statement.
+    6) To execute the data step, we use the RUN statement.
+  But also remember that the goal of your SAS program is to create a raw data file and not a SAS dataset, so it is inefficient at
+times to list a dataset name in the DATA statement. Instead, we can use the keyword _NULL_ which enables you to use the DATA step
+without actually creating a SAS datset. A SET statement specifies the SAS dataset that you want to read from. Essentially, using
+DATA _NULL_, we can read a SAS dataset (specified in the SET statement), export the file (specified in the FILE statement) with 
+intended variable names (specified in the PUT statement).
+
+  The general form of DATA _NULL_ step is given by the following:
+    DATA _NULL_;
+      SET SAS-dataset-name;
+      FILE 'SAS-dataset-name-path';
+      PUT var-1 var-2...var-n;
+    RUN;
+  
+  Note that compared to the standard DATA step, the INFILE statement becomes the FILE statement, and the INPUT statement becomes 
+the PUT statement. The use of PUT and FILE statement works exactly the same way as those of INPUT and INFILE. Note that now the 
+argument in the SET statement has to be a SAS dataset name, not a raw dataset name. 
+  The following program reads the SAS dataset named Sasparm in the Sasuser library first, then exports the file (in a txt file) and
+specifies the variable names in the text file modified from the original SAS dataset(the suffix for a SAS dataset is .sas7bdat, 
+while the suffix for a text file is .txt). 
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=80;
+DATA _NULL_;
+  SET Sasuser.Sasparm;
+  FILE 'U:\SAS64\nulldata.txt'; /* this indicates the path and filename you want to write out your file at */
+  PUT Name $ 1-5 Excel_1 7-9 Excel_2 11-13 Quiz_1 15-17 Quiz_2 19-21; 
+    /* this specifies the variable names in the file that you write out */ 
+RUN; /* now you can go to the place at U:\SAS64\nulldata.txt to see the text-file called nulldata */
+/*
+  We leave a few comments here. First, note that the FILE statement specifies the location where you want to write out your file.
+If we omit this statement, one can use the DATA _NULL_ step to do error checking by reading the log, while the dataset is not 
+necessarily written out. Second. the PUT statement is a very important tool in SAS. What follows the PUT statement can be dataset
+variables, a character string, the automatic variables _N_, _ALL_, and _ERROR_. We give a few examples below.
+*/
+DATA _NULL_;
+  SET Sasuser.Sasparm;
+  PUT Name $ 1-5 Excel_1 7-9 Excel_2 11-13 Quiz_1 15-17 Quiz_2 19-21;
+  PUT _ERROR_= 26-27; /* the equality sign allows SAS to write both the variable name and its value in the log */
+RUN; /* check the log, this time there is no output because there is no file statement */
+DATA _NULL_;
+  SET Sasuser.Sasparm;
+  PUT Excel_1= Excel_2= Quiz_1= Quiz_2=;
+RUN;

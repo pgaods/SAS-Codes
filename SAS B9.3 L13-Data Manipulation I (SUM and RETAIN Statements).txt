@@ -1,0 +1,141 @@
+/* SAS Base9.3 Lecture 13-Data Manipulation I. (SUM and RETAIN Statement) */
+
+
+
+/* This lecture studies techniques of data manipulation. We focus on studying the SUM and RETAIN statements. */
+
+/*
+  To manipulate variables, the first thing we will be learning is how to accumulate totals for numeric variables. To do so, we can
+use the SUM statement. The SUM statement is one of those special statement that doesn't start with a keyword in SAS. 
+
+  The general from of a SUM statement is given by the following:
+    variable+expression;
+  
+  Here, variable specifies the name of the accumulator variable. This variable must be numeric. The variable is automatically set 
+to 0 before the first observation is read. The variable's value is retained from one DATA step execution to the next. Expression 
+here is any valid SAS expression. A caveat must be mentioned that if the expression produces a missing value, the SUM statement 
+treats it like a zero (by contrast, in an assignment statement, a missing value is assigned if the expression produces a missing 
+value). 
+  The SUM statement adds the result of the expression that is on the right side of the plus sign to the numeric variable that is on
+the left side of the plus sign. At the beginning of the DATA step, the value of the numeric variable is not set to missing as it 
+usually is when reading raw data. Instead, the variable retains the new value in the program data vector for use in processing the 
+next observation.
+*/
+ODS HTML CLOSE;
+ODS LISTING; /* doing this conserves system resources */
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA fees;
+  INPUT Month $ Revenue Cost;
+  CARDS;
+  1 600 200
+  2 600 300
+  3 600 300
+  4 700 200
+  5 500 100
+  6 800 900
+  7 1000 600
+  8 1200 1100
+  9 400 200
+  10 500 600
+  11 900 900
+  ;
+RUN;
+PROC PRINT DATA=fees;
+RUN;
+DATA fees;
+  SET fees;
+  Profit=Revenue-Cost;
+  Bonus=100;
+  Profit+Bonus; /* in this context, the program basically says the updated Profit equals Profit+Bonus, check the output! */
+                /* this is not the best way to use the SUM statement but we use it to point out that this expression here works */
+RUN;
+PROC PRINT DATA=fees;
+RUN;
+
+/*
+  We now give a classic example of the SUM statement. We have a baseball data set. We want to add a new variable to the data set, 
+called RunsToDate, which shows the cumulative number runs. In essence, the SUM statement is best used when we want to calculate
+cumulative numeric values (say cumuluative frequencies, cumulative counts etc.)
+*/
+DATA games;
+ INPUT Month 1 Day 3-4 Team $ 6-25 Hits 27-28 Runs 30-31;;
+ CARDS;
+6-19 Columbia Peaches     8  3
+6-20 Columbia Peaches    10  5
+6-23 Plains Peanuts       3  4
+6-24 Plains Peanuts       7  2
+6-25 Plains Peanuts      12  8
+6-30 Gilroy Garlics       4  4
+7-1  Gilroy Gralics       9  4
+7-4  Sacramento Tomatoes 15  9
+7-4  Sacramento Tomatoes 10 10
+7-5  Sacramento Tomatoes  2  3
+;
+RUN;
+DATA games;
+  SET games;
+  RunsToDate+Runs; /* this is equivalent to say the initial value of RunsToDate is Runs, and I keep adding Runs to RunsToDate */
+                   /* the initial value of Runs is 3, and the initial value of RunsToDate is 0 */
+RUN;
+PROC PRINT DATA=games;
+RUN;
+/*
+  The printed dataset looks like the following:
+
+                                                                     Runs
+      Obs    Month    Day           Team            Hits    Runs    ToDate
+
+        1      6       19    Columbia Peaches         8       3        3
+        2      6       20    Columbia Peaches         0       5        8
+        3      6       23    Plains Peanuts           3       4       12
+        4      6       24    Plains Peanuts           7       2       14
+        5      6       25    Plains Peanuts           2       8       22
+        6      6       30    Gilroy Garlics           4       4       26
+        7      7        1    Gilroy Gralics           9       4       30
+        8      7        4    Sacramento Tomatoes      5       9       39
+        9      7        4    Sacramento Tomatoes      0       0       39
+       10      7        5    Sacramento Tomatoes      2       3       42
+
+*/
+
+/*
+  We now learn how to set the initial value of the left-hand side variable (the accumulator variable) in the SUM statements. To do
+so, we use the RETAIN statement. The RETAIN statement does 2 things: 1) first, it assigns an initial value to the accumulator 
+variable (the retained variable), and 2) it prevents variables from being initialized each time the DATA step executes. 
+
+  The general form of the RETAIN statement is given by the following:  
+    RETAIN accumulator-variable initial-value;
+    accumulator-variable+expression;
+
+  The RETAIN statement is a compile-time only statement that creates variables if they do not already exist. It initializes the
+retained variable to missing before the first execution of the DATA step if you do not supply an initial value. Meanwhile, this  
+statement has no effect on variables that are read with SET, MERGE, or UPDATE statements. 
+*/
+DATA games;
+  SET games;
+  RETAIN RunsToDate 30; /* this says the initial value of RunsToDate is 30 */
+  RunsToDate+Runs; 
+RUN;
+PROC PRINT DATA=games;
+RUN;
+/*
+  The printed dataset looks like the following:
+
+                                                                     Runs
+      Obs    Month    Day           Team            Hits    Runs    ToDate
+
+        1      6       19    Columbia Peaches         8       3       33
+        2      6       20    Columbia Peaches         0       5       38
+        3      6       23    Plains Peanuts           3       4       42
+        4      6       24    Plains Peanuts           7       2       44
+        5      6       25    Plains Peanuts           2       8       52
+        6      6       30    Gilroy Garlics           4       4       56
+        7      7        1    Gilroy Gralics           9       4       60
+        8      7        4    Sacramento Tomatoes      5       9       69
+        9      7        4    Sacramento Tomatoes      0       0       69
+       10      7        5    Sacramento Tomatoes      2       3       72
+
+*/
+
+
+

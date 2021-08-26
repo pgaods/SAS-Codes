@@ -1,0 +1,177 @@
+/* SAS Base9.3 Lecture 21-SAS Functions II. (INPUT and PUT Functions)  */
+
+
+
+/* This lecture studies the INPUT() and PUT() functions. */
+
+/* 
+  We now learn how to convert data nature with functions. In general, we've already learned that SAS datasets may have numeric or 
+character data. When we mis-classify numeric data as character data, or vice versa, SAS will detect the mismathced variables and 
+will try an automatic conversion on its own. However, this process doesn't always work. So it's crucial to learn the famous PUT() 
+and INPUT() functions. When automatic conversion happens, say, from character to numeric, SAS creates temporary values of the 
+variable and then uses this temporary value for calculation. The automatic conversion usually uses the w.d format, where w is the 
+width of the character value that is being converted. It may also produce a numeric missing value from any character value that 
+does not conform to standard numeric notation. Below are some examples:
+
+    Character Value     Automatic Conversion to:     Numeric Value
+        12.47                                            12.47
+        -8.97                                            -8.97
+        1.24E1                                           12.43
+       1,782.98                                            .
+
+  Similarly, numeric data values can be automatically converted to character values whenever they are used in character context. 
+For example, the numeric values of the variable 'Site' can be converted to character values if you 1) assign the numeric value to a 
+previously defined character variable, or 2) use the numeric value with an operator that requires a character value, such as the 
+concatenation operator (e.g. SiteCode=site||dept), or 3) specify the numeric value in a function that requires character arguments, 
+such as the substring function SUBSTR(). We will see more details in the future.
+  To avoid the above problems, we now learn how to use the INPUT() and PUT() functions. These two functions are very powerful when 
+it comes to dealing with data nature conversion (Between numeric and character). We will not cover all the functionalities of these 
+two functions. Rather, we focus on studying their most powerful aspects. In general, it is a common precedure for SAS programmers 
+to use the INPUT() function to convert character variables into numeric variables and the PUT() function to convert numeric values
+into character vales. 
+
+  The general form of the INPUT() function is given by the following:
+    INPUT(source, informat)
+  
+  Here, the source-argument is usually the character variable, character constant, or character expression to be converted to a 
+numeric value. The informat-argument is the SAS informat that you want to apply to the source. It must be the name of an informat 
+followed by a period. If the INPUT() function returns a character value to a variable that has not yet been assigned a length, the 
+variable length is determined by the width of the informat. In general, it's more often for programmers to use numeric informat 
+because most of the programmers use the INPUT() function to convert character variables into numeric variables. Below are some 
+standard examples: 
+
+    Character Value        Conversion thru INPUT()       Result (Numeric)
+        2115233               INPUT(2115233, 7.)             2115233
+       2,115,233          INPUT(2,115,233, COMMA9.)         2,115,233
+
+  A caveat here: one can also use INPUT() function to convert character values to character values. In that case, the informat must
+be a character informat. We will not cover this topic further. Please see the online SAS documentation for more info. In short, the
+result of the INPUT() function can be either numeric or character (though usually, it's more common to get a numeric result). The 
+informat determines whether the result is numeric or character.
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I YEARCUTOFF=1920;
+DATA char_data;
+  INPUT Height $4. Weight $4. Date $11.;
+  CARDS;
+1.76 160 05/02/2014
+1.90 180 05/02/2014
+1.67 145 04/03/2012 
+;
+RUN; 
+PROC CONTENTS DATA=char_data OUT=varlist1 (KEEP=Memname Name Type Length);
+RUN; /* these are character variables now with respective length 4, 4, 11 */
+PROC PRINT DATA=varlist1;
+  FOOTNOTE1 'Type=1-Numeric';
+  FOOTNOTE2 'Type=2-Character';
+RUN; 
+DATA Numer_data (DROP=Height Weight Date);
+  SET Char_data;
+  Height_Num=INPUT(Height, 4.2);
+  Weight_Num=INPUT(Weight, 3.);
+  Date_Num=INPUT(Date, MMDDYY10.);
+RUN;
+PROC PRINT DATA=Numer_data;
+RUN; /* after the conversion, the Date_Num is numeric, so it's default display is SAS date */
+PROC PRINT DATA=Numer_data;
+  FORMAT Date_Num MMDDYY10.;
+RUN;
+PROC CONTENTS DATA=Numer_data OUT=varlist2 (KEEP=Memname Name Type Length);
+RUN; /* note that the length of each variable after conversion is 8 */
+PROC PRINT DATA=varlist2;
+RUN;
+
+/*
+  We now study the PUT() function. 
+  
+  The general form of the PUT() function is given by the following:
+    PUT(source, format)
+
+  Here, the source is generally a numeric variable, numeric constant, or numeric expression to be converted to a character value. 
+However, the source-argument can be either character or numeric. Notice that the INPUT() function requires an informat, the PUT() 
+function requires a format. The PUT() function always returns a character string, and the format must agree with the source type 
+(thus the format should be numeric in nature if the source itself is numeric at first hand). A cautionary note: if you use the PUT() 
+function to create a variable that has not been previously identified, it creates a character variable whose length is equal to the
+format width. Note that by default, since the source is usually numeric, the resulting character string is right-aligned. Another 
+caveat here: one can also use the PUT() function to convert character values to character values, that is, the source here could be
+character too. But no matter what, the format must be of the same type as that of the source. 
+*/
+DATA number;
+  INPUT Height Weight Date MMDDYY10.; 
+    /* this is the informat, so that if you print the dataset 'number', the display of the variable 'Date' will be in SAS date*/
+  CARDS;
+1.76 160 05/02/2014
+1.90 180 05/02/2014
+1.67 145 04/03/2012 
+;
+RUN; 
+PROC PRINT DATA=number;
+RUN;
+PROC PRINT DATA=number; /* to change the display of the variable 'Date', we assign a format state here */
+  FORMAT Date MMDDYY10.;
+RUN;
+PROC CONTENTS DATA=number OUT=varlist3 (KEEP=Memname Name Type Length);
+RUN; /* note that the length of each variable has a length of 8 */
+PROC PRINT DATA=varlist3;
+  FOOTNOTE1 'Type=1-Numeric';
+  FOOTNOTE2 'Type=2-Character';
+RUN; 
+DATA character (DROP=Height Weight Date);
+  SET number;
+  Height_Charac=PUT(Height, 4.2);
+  Weight_Charac=PUT(Weight, 3.0);
+  Date_Charac=PUT(Date, MMDDYY10.); 
+    /* since the format of Date must agree with its type, and we have assigned a format to 'Date', we use the MMDDYY10. here */
+RUN;
+PROC PRINT DATA=character;
+RUN;
+PROC CONTENTS DATA=character OUT=varlist4 (KEEP=Memname Name Type Length);
+RUN; 
+/* 
+  Below is another example to show the importance of agreement between the source and the format for the PUT() function 
+*/
+DATA number1;
+  INPUT Height Weight Date MMDDYY10.; 
+  CARDS;
+1.76 160 05/02/2014
+1.90 180 05/02/2014
+;
+RUN; 
+PROC PRINT DATA=number1;
+RUN;
+PROC CONTENTS DATA=number1;
+RUN;
+DATA character1 (DROP=Height Weight Date);
+  SET number;
+  Height_Charac=PUT(Height, 4.2);
+  Weight_Charac=PUT(Weight, 3.0);
+  Date_Charac=PUT(Date, 5.0); 
+    /* since the format of 'Date' must agree with its type, and we have not assigned a format to 'Date', we use the 5.0 here */
+RUN;
+PROC PRINT DATA=character1;
+  /* adding a FORMAT statement will do nothing to the variable 'Date' because now it's a character variable */
+  /* there is no format called $MMDDYY10. */
+RUN; 
+
+/*
+  Points to remember:
+  1) The result of the INPUT() function can be both numeric or character. The informat-argument within INPUT() determines whether
+     the result is numeric or character. It's common to use INPUT() to convert character values to numeric values (so the informat 
+     is a numeric informat in this case). But the source-argument of the INPUT() function must be character!
+  2) The result of the PUT() function must be character! But the source-argument of the PUT() function can be either numeric or 
+     character. It is more common to convert numeric variables into character variables using PUT(), and the format-argument must 
+     agree with the source type!
+ 
+             output of the function     source-argument             common Practice                       type-argument
+    -------------------------------------------------------------------------------------------------------------------------------
+
+    INPUT()      can be both           must be character     common: character to numeric       informat determines output 
+                                                               rare: character to character        (informat can be both)
+                                                                   
+    -------------------------------------------------------------------------------------------------------------------------------
+    PUT()      must be character           can be both        common: numeric to character      format must agree with the source 
+                                                                rare: character to character       (format can be both)
+
+*/ 
+

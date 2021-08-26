@@ -1,0 +1,1170 @@
+/* SAS Base9.3 Lecture 22-SAS Functions IV. (Functions for Characters)  */
+
+
+
+/* This lecture studies the how to use SAS functions to modify character values. */
+
+/* 
+  We now learn how to use SAS functions to modify character values and character strings. There is a large literature on using SAS
+functions to achieve such a goal, but this lecture only covers the essentials. The ones we will cover in this lecture can help us 
+replace the contents of a character value, or trim trailing blanks from a character value, or search a character value and extract 
+a portion of it etc. SAS functions are very powerful. The ones we cover now are the basics among the basics. 
+/*
+
+/*
+  I. SCAN():
+  The SCAN() function enables you to separate a character value into words and to return a specified word. Typically it's used in 
+the following scenario: suppose we have a variable name called "Name", which contains both the first and last name of a person. The
+SCAN() function can basically help us separate this into two variables and return a specified word for each created variable. The 
+SCAN() function uses delimiters, which are essentially characters specified as word separators to separate a character string into
+words. For example, if the following is a character string, say "low.high", then the dot is a delimiter, so the SCAN() function can
+separate the string into two words in this case. In addition, one can specify as many delimiters as needed to correclty separate 
+the character expressions. When you specify multiple delimiters, SAS uses all of the delimiters as word separators. The tricky part
+to remember is that the SCAN() function treats two or more contiguous delimiters as one delimiter. Also, leading delimiters have no 
+effect. Thus, if we have a character string that looks like "234/-222-2015", then the SCAN() function will treat "/-" as one single
+delimiter. If one doesn't specify delimiters when using the the SCAN() function, then default delimiters are used. These default 
+delimters include: " "(blank), ".", "<", "(", "+" "|" "$" "*" ")" ";" "^", "/", "%", etc.
+ 
+  The general form of the SCAN() function is given by:
+    SCAN(argument, n, delimiters)
+
+  Here, the argument specfies the character expression to be scanned. The second argument "n" specifies which word to read, and the
+third argument "delimiter" are special characters that must be enclosed in single quotation marks. One important caveat here is that
+the SCAN() function assigns a length of 200 to each target variable (a target variable is the variable receiving the result of the
+function). So if you submit the result of this function, then all the variable lengths will be longer than necessary. Thus, it is a
+common practice to include a LENGTH statement before using the SCAN() function. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I YEARCUTOFF=1920; 
+
+DATA manager;
+  INPUT ID $ 1-4 Name $ 6-20;
+  CARDS;
+D001 Anna Ginsburg 
+D002 Ben Long
+F992 Andy Hughes
+F872 Howard Bartok
+G009 Michelle Hwang
+;
+RUN;
+DATA company;
+  INPUT ID $ 1-4 Agency $ 6-34 Date MMDDYY10.;
+  CARDS;
+D001 Administrative Support, Inc. 11/23/2013
+D002 Administrative Support, Inc. 01/02/2014
+F993 OD Consulting, Inc.          03/09/2014
+F872 New York Temps Agency        05/02/2014
+G009 YNCA Group                   05/12/2014
+;
+RUN;
+PROC SORT DATA=manager;
+  BY ID;
+RUN;
+PROC SORT DATA=company;
+  BY ID;
+RUN;
+DATA company_summary;
+  MERGE manager company;
+  BY ID;
+RUN;
+PROC PRINT DATA=company_summary;
+RUN;
+DATA final (DROP=Name);
+  SET company_summary;
+  LENGTH LastName FirstName $ 10; /* each is assigned with a length of 10 */
+  FORMAT Date DATE10.;
+  LastName=SCAN(Name, 2); /* this says the second part of the variable 'Name' is LastName */
+  FirstName=SCAN(Name, 1); /* the default delimiter is blank */
+RUN;
+PROC PRINT DATA=final;
+  TITLE 'Company Leader In the Market';
+RUN;
+PROC CONTENTS DATA=final;
+RUN; /* this confirms that the length of the two variables LastName and Firstname have lenghts of 10 both */
+
+/*
+  II. SUBSTR():
+  The SUBSTR() function works similarly, though this function does not require a delimiter. It is used to extract a portion of a
+character value. or to replace the contents of a character value. 
+
+  The general form of the SUBSTR() function is given by:
+    SUBSTR(argument, position, k)
+
+  Here, "argument" is the character epxression to be scanned. The "position" argument is the character position to start from, and
+the optional "k" argument specifies the number of characters to extract. If "k" is omitted, then all the remaining characters will 
+be included in the substring. 
+*/
+DATA final1;
+  SET final;
+  LastInitial=SUBSTR(LastName, 1, 1); /* the new variable extracts the first letter of the character string 'LastName' */
+  ID_suffix=SUBSTR(ID, 2, 3); /* this extracts the ID variable starting from the second digit with the length of 3 */
+RUN;
+PROC PRINT DATA=final;
+RUN;
+PROC PRINT DATA=final1;
+RUN;
+/*
+  A note of caveat here: SAS uses the SUBSTR() function to extract a substring or to modify a variable's values, depending on the
+position of the function in the assignment statement. If the function is on the right side of an assignment statement, the function
+returns the requested string, which we saw earlier. But if you place the functionn on the left side of an assignment statement, the
+function is used to modify variable values. For example, if we type SUBSTR(region, 1, 3)='NNW', then we are replacing the first 3
+letters of the variable "region" with the character string 'NNW'. 
+*/
+DATA final2;
+  SET final;
+  NewID=ID;
+  SUBSTR(NewID, 1, 1)='U'; /* we are replacing the first letter of the variable ID with the character string 'U' */
+RUN;
+PROC PRINT DATA=final;
+RUN;
+PROC PRINT DATA=final2;
+  TITLE "ID Recoded with 'U'";
+RUN;
+/*
+  To sum up, the SCAN() function extracts words within a value that is marked by delimiters, while the SUBSTR() fuction extracts a
+portion of a value by starting at a specified location. The SUBSTR() function is best used when you know the exact position of the 
+substring that you want to extract from the character expression. The substring does not need to be marked by delimiters.  
+*/
+
+/*
+  III. TRIM() and TRIMN():
+  These functions enable you to remove all trailing blanks from character values. If the argument is blank, then TRIM() returns one 
+blank. TRIM() is useful for concatenating because concatenation does not remove trailing blanks. TRIMN() and TRIM() functions are 
+similar. TRIMN() returns a string with a length of zero for a blank string, while TRIM() returns one blank for a blank string.
+
+  The general form of the TRIM() function is given by:
+    TRIM(argument)
+
+  Here the argument can be a character variable or another character function (e.g. TRIM(UPCASE(address))). Keep in mind that the 
+TRIM() function does not affect how a variable is stored. Suppose you trim the values of a variable and then assign these values to
+a new variable. Then the trimmed values are padded with trailing blanks again if the values are shorter than the length of the new
+variable. 
+  Please check 'http://support.sas.com/documentation/cdl/en/ds2ref/66664/HTML/default/viewer.htm#p1szmwce0u4y6ln1kruyzd6vmzlr.htm' 
+for more information. 
+*/
+DATA company1;
+  INPUT ID $ 1-4 Agency $ 6-34 State $ 35-37 Country $ 38-47;
+  CARDS;
+D001 Administrative Support, Inc. AZ USA          
+D002 Administrative Support, Inc. AZ USA          
+F993 OD Consulting, Inc.          CA USA          
+F872 New York Temps Agency        NY USA          
+G009 YNCA Group                   TX USA          
+                                                  
+T124                              CA USA          
+; /* note there are blank spaces in the dataset for the last observation */
+RUN;
+PROC PRINT DATA=company1;
+  TITLE 'Corp Info';
+RUN;
+DATA company2;
+  SET company1;
+  Location=Country||', '||State||'   '; /* the '||' sign is the concatenation operator */
+RUN;
+PROC PRINT DATA=company2;
+  TITLE 'Corp Info-Ugly Version';
+RUN; /* one can see the output with trailing blanks after the character string 'USA', which is something we don't want */
+DATA company3; /* If you compare the following program with the one above, you will see the difference */
+  SET company2;
+  Location=TRIM(Country)||', '||State; 
+RUN;
+PROC PRINT DATA=company3;
+  TITLE 'Corp Info-Beautiful Version';
+RUN;
+TITLE;
+
+/*
+  IV. LEFT() and RIGHT():
+  For these two functions, information can be found from the following addresses, so we won't attach examples to any one of them:
+
+    http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212224.htm
+    http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212248.htm
+
+  The general form of them are given by:
+    LEFT(argument)
+    RIGHT(argument)
+
+  Basically, LEFT() left-aligns a character string. It returns an argument with leading blanks moved to the end of the value, and 
+the argument's length does not change. The RIGHT() function does the other way around. 
+*/
+
+/*
+  V. CATX():
+  This function enables you to concatenate character strings, remove leading and trailing blanks, and insert separators. It returns
+a value to a variable, or a value to a temporary buffer. The results of the CATX() function are usually equivalent to those that're
+produced by a combination of the concatenation operator, say the TRIM() and the LEFT() functions. 
+
+  The general form of the CATS() function is given by the following:
+    CATX(separator, string-1,...string-k)
+
+  Here the separator specifies the character string that is used as a separator between concatenated strings. And all the string-k 
+sequences specify a SAS character string. 
+  The CATX() function is one of the most powerful functions in SAS. More references with regards to this function can be found at:
+
+    'http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a002257076.htm'
+
+  In the example below, in terms of blanks in between variables, we have: 
+    1) ID: no leading or trailing blanks, with the length=4.
+    2) Agency: no leading or trailing blanks, with the length=28.
+    3) State: 7 leading blanks and 3 trailing blanks, with the length=12.
+    4) Country: 1 leading blank and no trailing blanks, with the length=4.
+    5) City: no leading blanks and 5 trailing blanks, with the length=18. 
+  We now need to get rid of all the leading and trailing blanks and we also do a brief comparison between CATX() and the the other
+functions aforementioned. 
+*/
+DATA company4;
+  INPUT ID $ 1-4 Agency $ 6-33 State $ 34-45 Country $ 46-49  City $ 51-68;
+  CARDS;
+D001 Administrative Support, Inc.       AZ    USA Phoenix           
+D002 Administrative Support, Inc.       AZ    USA Phoenix           
+F993 OD Consulting, Inc.                CA    USA Los Angeles       
+F872 New York Temps Agency              NY    USA New York City     
+G009 YNCA Group                         TX    USA Houston           
+                                                                    
+T124                                    CA    USA Santa Monica      
+; 
+RUN;
+PROC CONTENTS DATA=company4;
+RUN;
+DATA company4_catx (DROP=Country State City);
+  LENGTH new_location $30; /* if you don't specify this, the length of the new variable would be 200 as the default value */
+  SET company4;
+  new_location=CATX(', ', City, State, Country);
+RUN;
+PROC PRINT DATA=company4_catx;
+RUN;
+PROC CONTENTS DATA=company4_catx;
+RUN;
+DATA company4_other (DROP=State);
+  SET company4;
+  State_1=RIGHT(State); 
+  State_2=LEFT(State);
+  State_3=TRIM(State);
+RUN;
+PROC PRINT DATA=company4_other;
+  VAR State_1-State_3;
+RUN;
+PROC CONTENTS DATA=company4_other;
+RUN; /* Keep in mind that the TRIM() function does not affect how a variable is stored, so the length doesn't change */
+
+/*
+  VI. STRIP():
+  In terms of moving trailing blanks, there are other tools we can use. One example is the STRIP() function. In a DATA step, if the 
+STRIP() function returns a value to a variable that has not previously been assigned a length, then that variable will be given the 
+length of the argument. The STRIP() function returns the argument with all leading and trailing blanks removed. If the argument is
+blank, STRIP() returns a string with a length of zero. 
+  Note also that assigning the results of STRIP() to a variable does not affect the length of the receiving variable. If the value 
+that is trimmed is shorter than the length of the receiving variable, SAS pads the value with new trailing blanks.
+  The STRIP() function is useful for concatenation because the concatenation operator does not remove leading or trailing blanks.
+
+  The general form of the STRIP() function is given by the following:
+    STRIP(character-string)
+ 
+  The following list compares the STRIP() function with the TRIM() and TRIMN() functions: 
+    1) For strings that are blank, the STRIP() and TRIMN() functions return a string with a length of zero, while the famous TRIM()
+       function will return a single blank.
+    2) For strings that lack leading blanks, the STRIP() and TRIMN() functions return the same value.
+    3) For strings that lack leading blanks but have at least one non-blank character, the STRIP() and TRIM() functions return the
+       same value. In fact, the STRIP() function returns the same result as that of implementing the TRIMN(LEFT()) function.
+*/
+
+/*
+  VII. TRANWORD():
+  The TRANWORD() function is another powerful tool here. The TRANWRD() function replaces all occurrences of a given substring within
+a character string. It does not remove trailing blanks in the target string and the replacement string. In a DATA step like before, 
+if the TRANWRD function returns a value to a variable that has not previously been assigned a length, then that variable is given a
+length of 200 bytes. You can use the LENGTH statement, before calling TRANWRD(), to change the length of the value.
+  
+  The general form of the TRANWRD() function is given by the following:
+    TRANWRD(source,target-string,replacement-string)
+
+  Here, the source specifies a character constant, variable, or expression that you want to translate. It's often the variable name.
+The target-string specifies a character constant, variable, or expression that is searched for in the source (note that the length for 
+the target must be greater than zero). Lastly, replacement-string specifies a character constant, variable, or expression that in turn
+replaces the target-string. When the replacement-string has a length of zero, TRANWRD() uses a single blank instead. If the target and
+the replacement strings are characters, you need the quotation mark. 
+*/
+DATA company_tranwrd;
+  SET company4;
+  Country=TRANWRD(country, "USA", "U.S.A.");
+  ID=TRANWRD(ID, "", "0000");
+  Paid=100;
+  Paid_corrected=TRANWRD(Paid, 100, 50); /*this function works for numeric variables or strings too*/
+RUN;
+PROC PRINT DATA=company4;
+RUN;
+PROC PRINT DATA=company_tranwrd;
+RUN;
+
+/*
+  VIII. COMPRESS() and COMPBL():
+  These are two of the most important functions in this lecture. The COMPRESS() function returns a character string with specified 
+characters removed from the original string. 
+
+  The most common way of using the COMPRESS function is given by the following:
+    COMPRESS(character-string, compress-list)
+
+  Here, the character-string is any SAS character expression to be 'tightened', and the compress-list is an optional list of the 
+characters you want to remove. If this argument is omitted, the default character to be removed is blank. If you include a list of 
+values to remove, only those characters will be removed. If a blank is not included in the list, blanks will not be removed. In the
+meantime, in a DATA step, if the COMPRESS() function returns a value to a variable that has not previously been assigned a length, 
+that variable will be given the length of the first argument. The COMPRESS() function allows null arguments. Here, a null argument  
+is treated as a string that has a length of zero.
+*/
+DATA phonenumber;
+  INPUT phone $ 1-18;
+  CARDS;
+(905)230-2289    
+(201) 342- 88 99 
+(310)890-7782    
+(310) 8 90-7 782 
+(630) 22 1 -2244 
+;
+RUN;
+PROC PRINT DATA=phonenumber;
+RUN;
+DATA cleanphone;
+  SET phonenumber;
+  phone1=COMPRESS(phone);
+  phone2=COMPRESS(phone, '(-)');
+  phone3=COMPRESS(phone, '123456789');
+  phone4=COMPRESS(phone, '-');
+  phone5=COMPRESS(COMPRESS(phone, '-'));
+RUN;
+PROC PRINT DATA=cleanphone;
+RUN;
+/*
+  In contrast, the COMPBL() function works very similarly to the COMPRESS() function but a bit different to some extent. It removes 
+multiple blanks in a character string by translating each occurrence of two or more consecutive blanks into a single blank. Note that
+the COMPRESS() function removes every occurrence of the specific character from a string. If you specify a blank as the character to 
+remove from the source string, the COMPRESS() function removes all blanks from the source string, while the COMPBL() function will 
+compresses multiple blanks to a single blank and has no effect on a single blank. Moreover, in a DATA step, if the COMPBL() function
+returns a value to a variable that has not previously been assigned a length, then the length of that variable defaults to the length
+of the first argument.
+  The most common way of using the COMPBL() function is given by the following:
+    COMPBL(source)
+
+  Here, the argument called source is a character constant, variable, or expression to compress. We now give an example to illustrate 
+the difference betweeen COMPRESS() and COMPBL(). 
+  For more information about the COMPBL() function, please see the following link for more information, examples, and comparison:
+    'http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000214211.htm'
+
+  Now we use COMPRESS() and COMPBL() together for comparison below. 
+*/
+DATA composer_string;
+  INPUT sentence $66.;
+  CARDS;
+Schubert wrote this           song while he was 14 true
+Chopin is completely a         genius       true       
+Prokofiev true and Stalin's relationship is weirdtrue  
+;
+run; 
+PROC PRINT DATA=composer_string;
+TITLE 'Compare this printout with the printout below';
+RUN;
+DATA composer_string2;
+  SET composer_string;
+  s1=COMPRESS(sentence);
+  s2=COMPRESS(sentence, 'true');
+  s3=COMPRESS(TRANWRD(sentence, 'true', ' '));
+  nearly_clean_sentence=COMPBL(sentence);
+  clean_sentence=COMPBL(TRANWRD(sentence, 'true', ' '));
+RUN;
+PROC PRINT DATA=composer_string2;
+RUN;
+
+/*
+  IX. FIND():
+  The FIND() function, in a nutshell, searches for a specific substring of characters within a character string and returns a numeric
+value that indicates the position of the string. 
+
+  The general form of the FIND() function is given by the following:
+    FIND(string,substring, modifiers, start-position)
+
+  Here, the string argument specifies a character constant, variable, or expression that will be searched for substrings (quotation
+marks are needed for this). The substring argument is a character constant, variable, or epxression that specifies the substring of 
+characters to search for in string (quotation marks, again, are needed). The modifiers argument is optional. It can be a character 
+constant, variable, or expression that specifies on eo rmore modifiers. The start-position argument is optional too. It usually is a 
+numeric constant, variable, or expresssion with integer value that specifies the position at which the search should start and the 
+direction of the search. 
+  To illustarte further, the FIND() function searches string for the first occurrence of the specified substring, and then returns the
+position of that substring. If the substring is not found in the string, the FIND() function will return a value of 0. In addition, If
+the start-position argument is not specified, the FIND() function will start the search at the beginning of the string and searches 
+the string from left to right. If the start-position is specified, the absolute value of the start-position argument will determine 
+the position at which to start the search:
+    1) If the value of the start-position is greater than 0, then SAS will start the search at the position at the start-position and 
+       the direction of the search is to the right. If the start-position is greater than the length of the string, the function will 
+       return a value of 0. 
+    2) If the value of the start-position is less than 0, then SAS will start at the position to be the negative start-position yet 
+       the direction of the search is to the left. If the negative value of the start-position is greater than the length of string,
+       the search will then start at the end of the string and the direction is from right to left!
+    3) Note that we also define by default that FIND(string, substring, modifiers, 0)=0.
+
+  Please see http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a002267763.htm#a002504502 for more info
+regarding the optional argument modifiers. In most of the cases we don't need it. So we don't discuss further here. 
+*/
+DATA flnames;
+  INPUT flname $6.;
+  CARDS;
+PZ024P
+;
+RUN;
+DATA flnames2;
+  LENGTH position1-position5 5.0;
+  SET flnames;
+    position1=FIND("PZ024P", "Z"); /*2*/
+	position2=FIND("PZ024P", "Z", 10); /*0*/
+	position3=FIND("PZ024P", "Z", -10); /*2*/
+	position4=FIND("PZ024P", "Z", 3); /*0*/
+    position5=FIND("PZ024P", "Z", -3); /*2*/
+	positoin6=FIND("PZ024P", "2", -10); /*4*/
+RUN;
+PROC PRINT DATA=flnames;
+TITLE 'flnames';
+RUN;
+PROC PRINT DATA=flnames2;
+TITLE 'flnames2';
+RUN;
+  
+/*
+  X. INDEX(), INDEXC():
+  The INDEX() function searches a character expression for a string of characters, and returns the position of the string's first
+character for the first occurrence of the string. 
+
+  The general form of the INDEX() function is given by the following:
+    INDEX(source, excerpts)
+
+  Here, the source argument specifies a character constant, variable, or expression to search. The excerpts argument is a character 
+constant, variable, or expression that specifies the string of characters to search for in the source argument. To use the function, 
+we need to enclose a literal string of characters in quotation marks. Note that both the leading and trailing spaces are considered 
+part of the excerpts argument. The search direction is always from the left to the right. If, however, the string is not somehow found
+in source, the function will return a value of 0. If there are multiple occurences of the string, INDEX() returns only the position of
+the first occurence. 
+
+  In contrast. the INDEXC() function searches a character expression for any of the specified characters, and returns the position of 
+that character. It searches for the first occurrence of any individual character that is present within the character string, whereas
+the INDEX() function searches for the first occurrence of the character string as a substring. The syntax for INDEXC() is very similar
+to that of INDEX(). 
+
+  The general form of the INDEXC() function is given by the following:
+    INDEXC(source, excerpt-1, exerpt-2,...exerpt-k)
+
+  Please see http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212242.htm for more information
+about INDEX() and http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212237.htm about INDEXC(). 
+*/
+DATA music;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti Baroque
+Bach      Baroque
+Haendel   Baroque
+Haydn     Classical
+Mozart             Classical
+Czerny    Classical
+Beethoven Classical-Romantic
+Schubert  Early Romantic
+Strauss   Romantic
+Chopin    Romantic
+Liszt     Romantic
+Schumann  Romantic
+Brahms    Romantic
+Grieg     Romantic
+Smetana   Romantic
+Debussy   Impressionistic
+Ravel     Impressionistic
+Stravinsky20 Century
+;
+RUN;
+PROC PRINT DATA=music;
+TITLE 'Composers Timeline';
+RUN;
+DATA composer;
+  SET music;
+  flag_Baroque=INDEX(period, 'Baroque');
+  flag_Classical=INDEX(period, 'Classical');
+  flag_Romantic=INDEX(period, 'Romantic');
+  flag_Impressionistic=INDEX(period, 'Impre');
+  flag_other=INDEX(period, '20');
+RUN;
+PROC PRINT DATA=composer;
+TITLE 'Composers Timeline with Flags Using INDEX() Function';
+RUN;
+DATA music2;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti Baroque
+;
+RUN;
+PROC PRINT DATA=music;
+TITLE 'Composers Timeline-only Scarlatti';
+RUN;
+DATA composer2;
+  SET music2;
+  period_='          '||period||'     ';
+  flag1=INDEXC(composer, '012345', '!@#$%^', 'abc'); /*2*/
+  flag2=INDEXC(composer, '012345', '!@#$%^', 'ab'); /*3*/
+  flag3=INDEXC(period, '012345', '!@#$%^', ''); /*8*/
+  flag4=INDEXC(period_, '012345', '!@#$%^', ''); /*1*/
+RUN;
+PROC PRINT DATA=composer2;
+TITLE 'Think about Why the Values Equal 2 3 8 1';
+RUN;
+
+/*
+  XI. ANYALPHA() and NOTALPHA():
+  The ANYALPHA() function is another powerful SAS function that searches a character string for an alphabetic character, and returns 
+the first positoin at which the character is found. It basically searches a string for the first occurrence of any character that is 
+an uppercase or lowercase letter. If such a character is found, ANYALPHA() returns the position in the string of that character. If
+no such character is found, ANYALPHA returns a value of 0.
+
+  The general form of the ANYALPHA() function is given by the following:
+    ANYALPHA(string, startpos)
+
+  Here, the string argument is the character constant, variable, or expression to search. The optional argument starpos is an integer
+that specifies the position at which the search should start and the direction in which to search. This option is rarely used. But to
+illustrate, if you use only one argument, the function begins the search att he beginning of the string. If you use 2 arguments, then
+the absolute value of the second argument specifies the position at which to begin the search. The direction in which to search is 
+determined in the following way: 
+    1) If the value of start is positive, the search proceeds to the right. 
+    2) If the value of start is negative, the search proceeds to the left.
+    3) If the value of start is less than the negative length of the string, the search begins at the end of the string. 
+
+  ANYALPHA() will return a value of 0 if 1) the character that you are searching for is not found, or 2) the value of the argument 
+'starpos'  is greater than the length of the string, or 3) the value of startpos=0.
+
+  The NOTALPHA() is pretty much the antonym of ANYALPHA(). It searches a character string for a nonalphabetic character, and returns
+the first position at which the character is found. Note that blank space is not considered a nonalphabetic character. One can find
+more information about these 2 functions from the official online documentation of SAS. 
+*/
+DATA music3;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti ^^))(Baroque@!!!
+Stravinsky 20 Cenutry
+;
+RUN;
+DATA composer3;
+  SET music3;
+  flag=ANYALPHA(period); 
+  flag2=ANYALPHA(composer); 
+  flag3=NOTALPHA(composer); 
+  flag4=NOTALPHA(period); 
+RUN;
+PROC PRINT DATA=music3;
+TITLE 'Music3';
+RUN;
+PROC PRINT DATA=composer3;
+TITLE 'Composer3 using ANYALPHA() and NOTALPHA';
+RUN;
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* SAS Base9.3 Lecture 22-SAS Functions IV. (Functions for Characters)  */
+
+
+
+/* This lecture studies the how to use SAS functions to modify character values. */
+
+/* 
+  We now learn how to use SAS functions to modify character values and character strings. There is a large literature on using SAS
+functions to achieve such a goal, but this lecture only covers the essentials. The ones we will cover in this lecture can help us 
+replace the contents of a character value, or trim trailing blanks from a character value, or search a character value and extract 
+a portion of it etc. SAS functions are very powerful. The ones we cover now are the basics among the basics. 
+/*
+
+/*
+  I. SCAN():
+  The SCAN() function enables you to separate a character value into words and to return a specified word. Typically it's used in 
+the following scenario: suppose we have a variable name called "Name", which contains both the first and last name of a person. The
+SCAN() function can basically help us separate this into two variables and return a specified word for each created variable. The 
+SCAN() function uses delimiters, which are essentially characters specified as word separators to separate a character string into
+words. For example, if the following is a character string, say "low.high", then the dot is a delimiter, so the SCAN() function can
+separate the string into two words in this case. In addition, one can specify as many delimiters as needed to correclty separate 
+the character expressions. When you specify multiple delimiters, SAS uses all of the delimiters as word separators. The tricky part
+to remember is that the SCAN() function treats two or more contiguous delimiters as one delimiter. Also, leading delimiters have no 
+effect. Thus, if we have a character string that looks like "234/-222-2015", then the SCAN() function will treat "/-" as one single
+delimiter. If one doesn't specify delimiters when using the the SCAN() function, then default delimiters are used. These default 
+delimters include: " "(blank), ".", "<", "(", "+" "|" "$" "*" ")" ";" "^", "/", "%", etc.
+ 
+  The general form of the SCAN() function is given by:
+    SCAN(argument, n, delimiters)
+
+  Here, the argument specfies the character expression to be scanned. The second argument "n" specifies which word to read, and the
+third argument "delimiter" are special characters that must be enclosed in single quotation marks. One important caveat here is that
+the SCAN() function assigns a length of 200 to each target variable (a target variable is the variable receiving the result of the
+function). So if you submit the result of this function, then all the variable lengths will be longer than necessary. Thus, it is a
+common practice to include a LENGTH statement before using the SCAN() function. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I YEARCUTOFF=1920; 
+
+DATA manager;
+  INPUT ID $ 1-4 Name $ 6-20;
+  CARDS;
+D001 Anna Ginsburg 
+D002 Ben Long
+F992 Andy Hughes
+F872 Howard Bartok
+G009 Michelle Hwang
+;
+RUN;
+DATA company;
+  INPUT ID $ 1-4 Agency $ 6-34 Date MMDDYY10.;
+  CARDS;
+D001 Administrative Support, Inc. 11/23/2013
+D002 Administrative Support, Inc. 01/02/2014
+F993 OD Consulting, Inc.          03/09/2014
+F872 New York Temps Agency        05/02/2014
+G009 YNCA Group                   05/12/2014
+;
+RUN;
+PROC SORT DATA=manager;
+  BY ID;
+RUN;
+PROC SORT DATA=company;
+  BY ID;
+RUN;
+DATA company_summary;
+  MERGE manager company;
+  BY ID;
+RUN;
+PROC PRINT DATA=company_summary;
+RUN;
+DATA final (DROP=Name);
+  SET company_summary;
+  LENGTH LastName FirstName $ 10; /* each is assigned with a length of 10 */
+  FORMAT Date DATE10.;
+  LastName=SCAN(Name, 2); /* this says the second part of the variable 'Name' is LastName */
+  FirstName=SCAN(Name, 1); /* the default delimiter is blank */
+RUN;
+PROC PRINT DATA=final;
+  TITLE 'Company Leader In the Market';
+RUN;
+PROC CONTENTS DATA=final;
+RUN; /* this confirms that the length of the two variables LastName and Firstname have lenghts of 10 both */
+
+/*
+  II. SUBSTR():
+  The SUBSTR() function works similarly, though this function does not require a delimiter. It is used to extract a portion of a
+character value. or to replace the contents of a character value. 
+
+  The general form of the SUBSTR() function is given by:
+    SUBSTR(argument, position, k)
+
+  Here, "argument" is the character epxression to be scanned. The "position" argument is the character position to start from, and
+the optional "k" argument specifies the number of characters to extract. If "k" is omitted, then all the remaining characters will 
+be included in the substring. 
+*/
+DATA final1;
+  SET final;
+  LastInitial=SUBSTR(LastName, 1, 1); /* the new variable extracts the first letter of the character string 'LastName' */
+  ID_suffix=SUBSTR(ID, 2, 3); /* this extracts the ID variable starting from the second digit with the length of 3 */
+RUN;
+PROC PRINT DATA=final;
+RUN;
+PROC PRINT DATA=final1;
+RUN;
+/*
+  A note of caveat here: SAS uses the SUBSTR() function to extract a substring or to modify a variable's values, depending on the
+position of the function in the assignment statement. If the function is on the right side of an assignment statement, the function
+returns the requested string, which we saw earlier. But if you place the functionn on the left side of an assignment statement, the
+function is used to modify variable values. For example, if we type SUBSTR(region, 1, 3)='NNW', then we are replacing the first 3
+letters of the variable "region" with the character string 'NNW'. 
+*/
+DATA final2;
+  SET final;
+  NewID=ID;
+  SUBSTR(NewID, 1, 1)='U'; /* we are replacing the first letter of the variable ID with the character string 'U' */
+RUN;
+PROC PRINT DATA=final;
+RUN;
+PROC PRINT DATA=final2;
+  TITLE "ID Recoded with 'U'";
+RUN;
+/*
+  To sum up, the SCAN() function extracts words within a value that is marked by delimiters, while the SUBSTR() fuction extracts a
+portion of a value by starting at a specified location. The SUBSTR() function is best used when you know the exact position of the 
+substring that you want to extract from the character expression. The substring does not need to be marked by delimiters.  
+*/
+
+/*
+  III. TRIM() and TRIMN():
+  These functions enable you to remove all trailing blanks from character values. If the argument is blank, then TRIM() returns one 
+blank. TRIM() is useful for concatenating because concatenation does not remove trailing blanks. TRIMN() and TRIM() functions are 
+similar. TRIMN() returns a string with a length of zero for a blank string, while TRIM() returns one blank for a blank string.
+
+  The general form of the TRIM() function is given by:
+    TRIM(argument)
+
+  Here the argument can be a character variable or another character function (e.g. TRIM(UPCASE(address))). Keep in mind that the 
+TRIM() function does not affect how a variable is stored. Suppose you trim the values of a variable and then assign these values to
+a new variable. Then the trimmed values are padded with trailing blanks again if the values are shorter than the length of the new
+variable. 
+  Please check 'http://support.sas.com/documentation/cdl/en/ds2ref/66664/HTML/default/viewer.htm#p1szmwce0u4y6ln1kruyzd6vmzlr.htm' 
+for more information. 
+*/
+DATA company1;
+  INPUT ID $ 1-4 Agency $ 6-34 State $ 35-37 Country $ 38-47;
+  CARDS;
+D001 Administrative Support, Inc. AZ USA          
+D002 Administrative Support, Inc. AZ USA          
+F993 OD Consulting, Inc.          CA USA          
+F872 New York Temps Agency        NY USA          
+G009 YNCA Group                   TX USA          
+                                                  
+T124                              CA USA          
+; /* note there are blank spaces in the dataset for the last observation */
+RUN;
+PROC PRINT DATA=company1;
+  TITLE 'Corp Info';
+RUN;
+DATA company2;
+  SET company1;
+  Location=Country||', '||State||'   '; /* the '||' sign is the concatenation operator */
+RUN;
+PROC PRINT DATA=company2;
+  TITLE 'Corp Info-Ugly Version';
+RUN; /* one can see the output with trailing blanks after the character string 'USA', which is something we don't want */
+DATA company3; /* If you compare the following program with the one above, you will see the difference */
+  SET company2;
+  Location=TRIM(Country)||', '||State; 
+RUN;
+PROC PRINT DATA=company3;
+  TITLE 'Corp Info-Beautiful Version';
+RUN;
+TITLE;
+
+/*
+  IV. LEFT() and RIGHT():
+  For these two functions, information can be found from the following addresses, so we won't attach examples to any one of them:
+
+    http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212224.htm
+    http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212248.htm
+
+  The general form of them are given by:
+    LEFT(argument)
+    RIGHT(argument)
+
+  Basically, LEFT() left-aligns a character string. It returns an argument with leading blanks moved to the end of the value, and 
+the argument's length does not change. The RIGHT() function does the other way around. 
+*/
+
+/*
+  V. CATX():
+  This function enables you to concatenate character strings, remove leading and trailing blanks, and insert separators. It returns
+a value to a variable, or a value to a temporary buffer. The results of the CATX() function are usually equivalent to those that're
+produced by a combination of the concatenation operator, say the TRIM() and the LEFT() functions. 
+
+  The general form of the CATS() function is given by the following:
+    CATX(separator, string-1,...string-k)
+
+  Here the separator specifies the character string that is used as a separator between concatenated strings. And all the string-k 
+sequences specify a SAS character string. 
+  The CATX() function is one of the most powerful functions in SAS. More references with regards to this function can be found at:
+
+    'http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a002257076.htm'
+
+  In the example below, in terms of blanks in between variables, we have: 
+    1) ID: no leading or trailing blanks, with the length=4.
+    2) Agency: no leading or trailing blanks, with the length=28.
+    3) State: 7 leading blanks and 3 trailing blanks, with the length=12.
+    4) Country: 1 leading blank and no trailing blanks, with the length=4.
+    5) City: no leading blanks and 5 trailing blanks, with the length=18. 
+  We now need to get rid of all the leading and trailing blanks and we also do a brief comparison between CATX() and the the other
+functions aforementioned. 
+*/
+DATA company4;
+  INPUT ID $ 1-4 Agency $ 6-33 State $ 34-45 Country $ 46-49  City $ 51-68;
+  CARDS;
+D001 Administrative Support, Inc.       AZ    USA Phoenix           
+D002 Administrative Support, Inc.       AZ    USA Phoenix           
+F993 OD Consulting, Inc.                CA    USA Los Angeles       
+F872 New York Temps Agency              NY    USA New York City     
+G009 YNCA Group                         TX    USA Houston           
+                                                                    
+T124                                    CA    USA Santa Monica      
+; 
+RUN;
+PROC CONTENTS DATA=company4;
+RUN;
+DATA company4_catx (DROP=Country State City);
+  LENGTH new_location $30; /* if you don't specify this, the length of the new variable would be 200 as the default value */
+  SET company4;
+  new_location=CATX(', ', City, State, Country);
+RUN;
+PROC PRINT DATA=company4_catx;
+RUN;
+PROC CONTENTS DATA=company4_catx;
+RUN;
+DATA company4_other (DROP=State);
+  SET company4;
+  State_1=RIGHT(State); 
+  State_2=LEFT(State);
+  State_3=TRIM(State);
+RUN;
+PROC PRINT DATA=company4_other;
+  VAR State_1-State_3;
+RUN;
+PROC CONTENTS DATA=company4_other;
+RUN; /* Keep in mind that the TRIM() function does not affect how a variable is stored, so the length doesn't change */
+
+/*
+  VI. STRIP():
+  In terms of moving trailing blanks, there are other tools we can use. One example is the STRIP() function. In a DATA step, if the 
+STRIP() function returns a value to a variable that has not previously been assigned a length, then that variable will be given the 
+length of the argument. The STRIP() function returns the argument with all leading and trailing blanks removed. If the argument is
+blank, STRIP() returns a string with a length of zero. 
+  Note also that assigning the results of STRIP() to a variable does not affect the length of the receiving variable. If the value 
+that is trimmed is shorter than the length of the receiving variable, SAS pads the value with new trailing blanks.
+  The STRIP() function is useful for concatenation because the concatenation operator does not remove leading or trailing blanks.
+
+  The general form of the STRIP() function is given by the following:
+    STRIP(character-string)
+ 
+  The following list compares the STRIP() function with the TRIM() and TRIMN() functions: 
+    1) For strings that are blank, the STRIP() and TRIMN() functions return a string with a length of zero, while the famous TRIM()
+       function will return a single blank.
+    2) For strings that lack leading blanks, the STRIP() and TRIMN() functions return the same value.
+    3) For strings that lack leading blanks but have at least one non-blank character, the STRIP() and TRIM() functions return the
+       same value. In fact, the STRIP() function returns the same result as that of implementing the TRIMN(LEFT()) function.
+*/
+
+/*
+  VII. TRANWORD():
+  The TRANWORD() function is another powerful tool here. The TRANWRD() function replaces all occurrences of a given substring within
+a character string. It does not remove trailing blanks in the target string and the replacement string. In a DATA step like before, 
+if the TRANWRD function returns a value to a variable that has not previously been assigned a length, then that variable is given a
+length of 200 bytes. You can use the LENGTH statement, before calling TRANWRD(), to change the length of the value.
+  
+  The general form of the TRANWRD() function is given by the following:
+    TRANWRD(source,target-string,replacement-string)
+
+  Here, the source specifies a character constant, variable, or expression that you want to translate. It's often the variable name.
+The target-string specifies a character constant, variable, or expression that is searched for in the source (note that the length for 
+the target must be greater than zero). Lastly, replacement-string specifies a character constant, variable, or expression that in turn
+replaces the target-string. When the replacement-string has a length of zero, TRANWRD() uses a single blank instead. If the target and
+the replacement strings are characters, you need the quotation mark. 
+*/
+DATA company_tranwrd;
+  SET company4;
+  Country=TRANWRD(country, "USA", "U.S.A.");
+  ID=TRANWRD(ID, "", "0000");
+  Paid=100;
+  Paid_corrected=TRANWRD(Paid, 100, 50); /*this function works for numeric variables or strings too*/
+RUN;
+PROC PRINT DATA=company4;
+RUN;
+PROC PRINT DATA=company_tranwrd;
+RUN;
+
+/*
+  VIII. COMPRESS() and COMPBL():
+  These are two of the most important functions in this lecture. The COMPRESS() function returns a character string with specified 
+characters removed from the original string. 
+
+  The most common way of using the COMPRESS function is given by the following:
+    COMPRESS(character-string, compress-list)
+
+  Here, the character-string is any SAS character expression to be 'tightened', and the compress-list is an optional list of the 
+characters you want to remove. If this argument is omitted, the default character to be removed is blank. If you include a list of 
+values to remove, only those characters will be removed. If a blank is not included in the list, blanks will not be removed. In the
+meantime, in a DATA step, if the COMPRESS() function returns a value to a variable that has not previously been assigned a length, 
+that variable will be given the length of the first argument. The COMPRESS() function allows null arguments. Here, a null argument  
+is treated as a string that has a length of zero.
+*/
+DATA phonenumber;
+  INPUT phone $ 1-18;
+  CARDS;
+(905)230-2289    
+(201) 342- 88 99 
+(310)890-7782    
+(310) 8 90-7 782 
+(630) 22 1 -2244 
+;
+RUN;
+PROC PRINT DATA=phonenumber;
+RUN;
+DATA cleanphone;
+  SET phonenumber;
+  phone1=COMPRESS(phone);
+  phone2=COMPRESS(phone, '(-)');
+  phone3=COMPRESS(phone, '123456789');
+  phone4=COMPRESS(phone, '-');
+  phone5=COMPRESS(COMPRESS(phone, '-'));
+RUN;
+PROC PRINT DATA=cleanphone;
+RUN;
+/*
+  In contrast, the COMPBL() function works very similarly to the COMPRESS() function but a bit different to some extent. It removes 
+multiple blanks in a character string by translating each occurrence of two or more consecutive blanks into a single blank. Note that
+the COMPRESS() function removes every occurrence of the specific character from a string. If you specify a blank as the character to 
+remove from the source string, the COMPRESS() function removes all blanks from the source string, while the COMPBL() function will 
+compresses multiple blanks to a single blank and has no effect on a single blank. Moreover, in a DATA step, if the COMPBL() function
+returns a value to a variable that has not previously been assigned a length, then the length of that variable defaults to the length
+of the first argument.
+  The most common way of using the COMPBL() function is given by the following:
+    COMPBL(source)
+
+  Here, the argument called source is a character constant, variable, or expression to compress. We now give an example to illustrate 
+the difference betweeen COMPRESS() and COMPBL(). 
+  For more information about the COMPBL() function, please see the following link for more information, examples, and comparison:
+    'http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000214211.htm'
+
+  Now we use COMPRESS() and COMPBL() together for comparison below. 
+*/
+DATA composer_string;
+  INPUT sentence $66.;
+  CARDS;
+Schubert wrote this           song while he was 14 true
+Chopin is completely a         genius       true       
+Prokofiev true and Stalin's relationship is weirdtrue  
+;
+run; 
+PROC PRINT DATA=composer_string;
+TITLE 'Compare this printout with the printout below';
+RUN;
+DATA composer_string2;
+  SET composer_string;
+  s1=COMPRESS(sentence);
+  s2=COMPRESS(sentence, 'true');
+  s3=COMPRESS(TRANWRD(sentence, 'true', ' '));
+  nearly_clean_sentence=COMPBL(sentence);
+  clean_sentence=COMPBL(TRANWRD(sentence, 'true', ' '));
+RUN;
+PROC PRINT DATA=composer_string2;
+RUN;
+
+/*
+  IX. FIND():
+  The FIND() function, in a nutshell, searches for a specific substring of characters within a character string and returns a numeric
+value that indicates the position of the string. 
+
+  The general form of the FIND() function is given by the following:
+    FIND(string,substring, modifiers, start-position)
+
+  Here, the string argument specifies a character constant, variable, or expression that will be searched for substrings (quotation
+marks are needed for this). The substring argument is a character constant, variable, or epxression that specifies the substring of 
+characters to search for in string (quotation marks, again, are needed). The modifiers argument is optional. It can be a character 
+constant, variable, or expression that specifies on eo rmore modifiers. The start-position argument is optional too. It usually is a 
+numeric constant, variable, or expresssion with integer value that specifies the position at which the search should start and the 
+direction of the search. 
+  To illustarte further, the FIND() function searches string for the first occurrence of the specified substring, and then returns the
+position of that substring. If the substring is not found in the string, the FIND() function will return a value of 0. In addition, If
+the start-position argument is not specified, the FIND() function will start the search at the beginning of the string and searches 
+the string from left to right. If the start-position is specified, the absolute value of the start-position argument will determine 
+the position at which to start the search:
+    1) If the value of the start-position is greater than 0, then SAS will start the search at the position at the start-position and 
+       the direction of the search is to the right. If the start-position is greater than the length of the string, the function will 
+       return a value of 0. 
+    2) If the value of the start-position is less than 0, then SAS will start at the position to be the negative start-position yet 
+       the direction of the search is to the left. If the negative value of the start-position is greater than the length of string,
+       the search will then start at the end of the string and the direction is from right to left!
+    3) Note that we also define by default that FIND(string, substring, modifiers, 0)=0.
+
+  Please see http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a002267763.htm#a002504502 for more info
+regarding the optional argument modifiers. In most of the cases we don't need it. So we don't discuss further here. 
+*/
+DATA flnames;
+  INPUT flname $6.;
+  CARDS;
+PZ024P
+;
+RUN;
+DATA flnames2;
+  LENGTH position1-position5 5.0;
+  SET flnames;
+    position1=FIND("PZ024P", "Z"); /*2*/
+	position2=FIND("PZ024P", "Z", 10); /*0*/
+	position3=FIND("PZ024P", "Z", -10); /*2*/
+	position4=FIND("PZ024P", "Z", 3); /*0*/
+    position5=FIND("PZ024P", "Z", -3); /*2*/
+	positoin6=FIND("PZ024P", "2", -10); /*4*/
+RUN;
+PROC PRINT DATA=flnames;
+TITLE 'flnames';
+RUN;
+PROC PRINT DATA=flnames2;
+TITLE 'flnames2';
+RUN;
+  
+/*
+  X. INDEX(), INDEXC():
+  The INDEX() function searches a character expression for a string of characters, and returns the position of the string's first
+character for the first occurrence of the string. 
+
+  The general form of the INDEX() function is given by the following:
+    INDEX(source, excerpts)
+
+  Here, the source argument specifies a character constant, variable, or expression to search. The excerpts argument is a character 
+constant, variable, or expression that specifies the string of characters to search for in the source argument. To use the function, 
+we need to enclose a literal string of characters in quotation marks. Note that both the leading and trailing spaces are considered 
+part of the excerpts argument. The search direction is always from the left to the right. If, however, the string is not somehow found
+in source, the function will return a value of 0. If there are multiple occurences of the string, INDEX() returns only the position of
+the first occurence. 
+
+  In contrast. the INDEXC() function searches a character expression for any of the specified characters, and returns the position of 
+that character. It searches for the first occurrence of any individual character that is present within the character string, whereas
+the INDEX() function searches for the first occurrence of the character string as a substring. The syntax for INDEXC() is very similar
+to that of INDEX(). 
+
+  The general form of the INDEXC() function is given by the following:
+    INDEXC(source, excerpt-1, exerpt-2,...exerpt-k)
+
+  Please see http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212242.htm for more information
+about INDEX() and http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a000212237.htm about INDEXC(). 
+*/
+DATA music;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti Baroque
+Bach      Baroque
+Haendel   Baroque
+Haydn     Classical
+Mozart             Classical
+Czerny    Classical
+Beethoven Classical-Romantic
+Schubert  Early Romantic
+Strauss   Romantic
+Chopin    Romantic
+Liszt     Romantic
+Schumann  Romantic
+Brahms    Romantic
+Grieg     Romantic
+Smetana   Romantic
+Debussy   Impressionistic
+Ravel     Impressionistic
+Stravinsky20 Century
+;
+RUN;
+PROC PRINT DATA=music;
+TITLE 'Composers Timeline';
+RUN;
+DATA composer;
+  SET music;
+  flag_Baroque=INDEX(period, 'Baroque');
+  flag_Classical=INDEX(period, 'Classical');
+  flag_Romantic=INDEX(period, 'Romantic');
+  flag_Impressionistic=INDEX(period, 'Impre');
+  flag_other=INDEX(period, '20');
+RUN;
+PROC PRINT DATA=composer;
+TITLE 'Composers Timeline with Flags Using INDEX() Function';
+RUN;
+DATA music2;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti Baroque
+;
+RUN;
+PROC PRINT DATA=music;
+TITLE 'Composers Timeline-only Scarlatti';
+RUN;
+DATA composer2;
+  SET music2;
+  period_='          '||period||'     ';
+  flag1=INDEXC(composer, '012345', '!@#$%^', 'abc'); /*2*/
+  flag2=INDEXC(composer, '012345', '!@#$%^', 'ab'); /*3*/
+  flag3=INDEXC(period, '012345', '!@#$%^', ''); /*8*/
+  flag4=INDEXC(period_, '012345', '!@#$%^', ''); /*1*/
+RUN;
+PROC PRINT DATA=composer2;
+TITLE 'Think about Why the Values Equal 2 3 8 1';
+RUN;
+
+/*
+  XI. ANYALPHA(), NOTALPHA(), ANYDIGIT(), ANYALNUM():
+  The ANYALPHA() function is another powerful SAS function that searches a character string for an alphabetic character, and returns 
+the first positoin at which the character is found. It basically searches a string for the first occurrence of any character that is 
+an uppercase or lowercase letter. If such a character is found, ANYALPHA() returns the position in the string of that character. If
+no such character is found, ANYALPHA returns a value of 0.
+
+  The general form of the ANYALPHA() function is given by the following:
+    ANYALPHA(string, startpos)
+
+  Here, the string argument is the character constant, variable, or expression to search. The optional argument starpos is an integer
+that specifies the position at which the search should start and the direction in which to search. This option is rarely used. But to
+illustrate, if you use only one argument, the function begins the search att he beginning of the string. If you use 2 arguments, then
+the absolute value of the second argument specifies the position at which to begin the search. The direction in which to search is 
+determined in the following way: 
+    1) If the value of start is positive, the search proceeds to the right. 
+    2) If the value of start is negative, the search proceeds to the left.
+    3) If the value of start is less than the negative length of the string, the search begins at the end of the string. 
+
+  ANYALPHA() will return a value of 0 if 1) the character that you are searching for is not found, or 2) the value of the argument 
+'starpos'  is greater than the length of the string, or 3) the value of startpos=0.
+
+  The NOTALPHA() is pretty much the antonym of ANYALPHA(). It searches a character string for a nonalphabetic character, and returns
+the first position at which the character is found. Note that blank space is not considered a nonalphabetic character. One can find
+more information about these 2 functions from the official online documentation of SAS. The ANYDIGIT() function works similarly. It
+searches a character string for a digit, and returns the first position at which the digit is found. The ANYALNUM() function searches
+a chracter string for an alphanumeric character, and returns the first position at which the chracter is found, that is, it searches
+a string for the first occurrence of any character that is a digit or an uppercase or lowercase letter. If such a character is found, 
+ANYALNUM() returns the position in the string of that character. If no such character is found, ANYALNUM() returns a value of 0 (the
+word alphanumeric means letter and numeric). Lastly, the ANYPUNCT() function searches a character string for a punctuation character, 
+and returns the first position at which that character is found. Below are the punctuations that SAS consideres to be punctuations:
+
+    ! " # $ % & ' ( ) * + , - . / : ; < = > ? @ [ \ ] ^ _ ` { | } ~
+
+  The syntaxes of these functions are pretty much the same. We will not further elaborate here. 
+*/
+DATA music3;
+  INPUT composer $ 1-10 period $ 11-30;
+  CARDS;
+Scarlatti ^^))(Baroque@!!!
+Stravinsky 20 Cenutry
+;
+RUN;
+DATA composer3;
+  SET music3;
+  flag=ANYALPHA(period); 
+  flag2=ANYALPHA(composer); 
+  flag3=NOTALPHA(composer); 
+  flag4=NOTALPHA(period); 
+RUN;
+PROC PRINT DATA=music3;
+TITLE 'Music3';
+RUN;
+PROC PRINT DATA=composer3;
+TITLE 'Composer3 using ANYALPHA() and NOTALPHA';
+RUN;
+DATA composer4;
+  SET music3;
+  flag=ANYDIGIT(composer);
+  flag2=ANYDIGIT(period);
+  flag3=ANYPUNCT(composer);
+  flag4=ANYPUNCT(period);
+RUN;
+PROC PRINT DATA=composer4;
+TITLE 'Figure out Why!!!';
+RUN;
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+

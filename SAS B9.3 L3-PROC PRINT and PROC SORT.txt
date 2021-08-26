@@ -1,0 +1,202 @@
+
+/* SAS Base9.3 Lecture 3-PROC PRINT and PROC SORT */
+
+
+
+/* This lecture studies PROC PRINT and PROC SORT and their applications in creating list reports and checking datasets. */
+
+/* 
+  PROC SORT and PROC PRINT are usually used in combination to examine what the dataset looks like. If the dataset is huge, it's 
+then wise to check a sub-portion of the dataset to see what it looks like before doing any statistical analyses. There are two 
+important points to remember for PROC SORT:
+    1) PROC SORT treats missing valuables as the smallest possible value 
+    2) By default, PROC SORT sorts data in an ascending way
+    3) If you don't use the OUT= option in the first PROC SORT statement, then PROC SORT permanently sorts the dataset that is 
+       specified in the DATA= option. If you need your data to be sorted to produce output for only one SAS session, then you 
+       should specify a temporary SAS dataset as teh output dataset. 
+We start with an example below, this is what a typical program looks like:
+*/
+ODS HTML CLOSE;
+ODS LISTING;
+OPTIONS PAGESIZE=60;
+DATA example_data;
+  INPUT Age Height 4.2 Weight Fee Gender $ Category $;
+  CARDS;
+34 1.75 150 20 M 1
+32 1.92 240 56 M 0
+18 1.65 172 32 F 2
+42 1.78 173 45 F 2
+20 1.68 120 12 F 1
+58 1.75 167 23 M 0
+21 1.59 123 32 M 0
+69 1.89 178 78 M 2
+60 1.67 143 98 F 1
+45 1.76 .   45 M 0
+34 1.45 180 .  . 2
+23 1.85 140 28 F 0
+;
+RUN; /* if we read instream datasets,  missing variables need to be denoted with a period even if the variable is categorical */
+PROC PRINT DATA=example_data NOOBS DOUBLE LABEL; /* NOOBS option  suppresses the observation index */
+                                                 /* DOUBLE  means double-space printout */   
+                                                 /* to assign labels below, one needs to specify the keyword LABEL first */ 
+  LABEL Height='Height in meters';
+  LABEL Weight='Weight in pounds';
+RUN; /* in the output, missing categorical variables are denoted by a blank space while */
+PROC SORT DATA=example_data OUT=example_data; /* the OUT option writes out the file */
+                                              /* PROC SORT treats missing valuables as the smallest possible value */
+  BY Age Gender; /* by default, PROC SORT sorts data in an ascending way */
+RUN;
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; /* here, though 'Gender' is a categorical variable, we do not need to put a dollar sign! */
+  SUM Fee Age; /* this calculates the sum of a numeric variable */
+  ID Gender Height; /* this does not bold the variables but print out the variables twice in the output */
+  WHERE Age>=21 AND Fee>=30; /* here the word "AND" is a logical operator */
+                             /* note that missing variable is not greater than or equal to 30, so that observation is dropped */
+  TITLE 'Gym Membership Information for Adults medium level fee members';
+RUN;
+/*
+  Here we leave a few comments before improving the program right above. First, if a variable in the ID statement also appears in 
+the VAR statement, then the output contains two columns for that variable. So to enhance the appearance of PROC PRINT, try not to 
+put the same variable in both the ID statement and the VAR statement. Moreover, adding a ID statement will automatically suppress 
+the observation index column in the output. Second, there can be only one WHERE statement in the PROC PRINT procedure. Therefore,
+conditions need to be connected by logical operators, such as AND(&), or OR(|). In general, the WHERE statement can appear in both
+PROC and DATA steps when it comes to specifying subsetting conditions, but the IF statement can only show up in DATA steps. 
+Moreover, to control the way compound expressions are evaluated, use the parentheses to denote priority. Lastly, by default, PROC 
+SORT sorts in an ascending manner. To sort data in a descending manner, simply put the SAS keyword DESCENDING right in front of the
+variable you try to sort by:
+  PROC SORT DATA=example_data;
+    BY DESCENDING Weight Age;
+  RUN;
+Note that here the keyword DESCENDING only applies to the variable Weight, instead of Age.
+Now we will write a better program below:
+*/
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; 
+  SUM Fee Age; 
+  WHERE Age>=21 AND Fee>=30;
+  TITLE 'Gym Membership Information for Adults medium level fee members';
+RUN;
+
+/*
+  We now learn some slightly more advanced tricks. Sometimes we want to subtotal numeric variables. To produce subtotals, we can
+add both a SUM statement and a BY statement to the PROC PRINT step after sorting. 
+
+  The General form of requesting subtotals in PROC PRINT step is given by the following:
+    SUM numeric-variable-1 numeric-variable 2..numeric-variable=n;
+    BY By-variable-1 By-variable-2....By-variable-n;
+  
+  Note that one can put a DESCENDING option in front of the By-variable-k, with k=1,2,...n. One can also put a NOTSORTED option 
+keyword right before the second semicolon. This option specifies that the observations are not necessarily sorted in aphabetic 
+or numeric order. If observations that have the same values for the BY variables are not contiguous, then the procedure treats
+each contiguous set as a separate BY group. If you do not use the NOTSORTED option in the BY statement, the observations in the 
+dataset must either be sorted by all the variables that you specify or they must be indexed appropriately. Thus, we highly 
+recommend to sort the variable first to avoid complications of using this option.
+  Finally, if we have sorted the data in a descending manner in the PROC SORT step, then the BY statement in the PROC PRINT step
+must also specify the keyword DESCENDING, otherwise the program will encounter an error. 
+*/
+PROC SORT DATA=example_data; 
+  BY DESCENDING Gender;
+RUN;
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; /* here, though 'Gender' is a categorical variable, we do not need to put a dollar sign! */
+  SUM Fee; /* this calculates the sum of a numeric variable */
+           /* the SUM statement treats missing variables to be 0 */
+  BY DESCENDING Gender; /* this the output into three parts based on male(M) and female(F) and 'missing gender' */
+                        /* notice also that the keyword DESCENDING must be specified here */
+  TITLE 'Gym Membership Information with Sums';
+RUN;
+PROC SORT DATA=example_data; 
+  BY Category Gender;
+RUN;
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; 
+  SUM Fee Weight; /* this calculates the sum of both of these numeric variables*/
+  BY Category Gender; /* the output lists by-combinations when Category and Gender are both factors*/
+  TITLE 'Gym Membership Information with Sums';
+RUN;
+/*
+  Notice in these programs there are some redundancy problems: the variable gender is mentioned twice in the output. To surpress
+one of them and make the output more compact, simply add an ID variable after the SUM...BY statements. We don't recommmend doing
+this because it may be confusing for reading. But we place an example below to illustrate the possibilty of achieving such an aim:
+*/
+PROC SORT DATA=example_data;
+  BY DESCENDING Gender;
+RUN;
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; /* here, though 'Gender' is a categorical variable, we do not need to put a dollar sign! */
+  SUM Fee; /* this calculates the sum of a numeric variable */
+           /* the SUM statement treats missing variables to be 0 */
+  BY DESCENDING Gender; /* this splits the output into three parts based on male(M) and female(F) and 'missing gender' */
+  ID Gender;
+  TITLE 'Compact Gym Membership Information';
+  FOOTNOTE 'This type of printout output is not highly recommended';
+RUN;
+
+/*
+  Now we discuss the TITLE and FOOTNOTE statement. As we have seen before, TITLE and FOOTNOTE can be placed inside the PROC 
+PRINT step. However, these statements can be put before PROC PRINT. Here a few points to remember:
+    1) The keyword TITLE is equivalent to TITLE1, you can add TITLE2, TITLE3...TITLEk. The same argument goes to FOONOTE.
+    2) TITLES and FOOTNOTES are centered by default.
+    3) TITLE and FOOTNOTES are always global statements, that is, after you define them, they remain in effect till you modify or 
+       cancel them. To cancel all previous titles or footnotes, simply specify a null TITLE or FOOTNOTE.
+*/
+PROC SORT DATA=example_data;
+  BY DESCENDING Gender;
+RUN;
+PROC PRINT DATA=example_data;
+  VAR Age Height Weight Gender Fee; 
+  SUM Fee Weight; 
+  BY DESCENDING Gender; 
+  TITLE;
+  FOOTNOTE;
+RUN;
+
+/*
+  Now we talk about formatting the printed output. To make data values more understandable, we can add a FORMAT statement, which 
+associates a variable with its format. Note that the FORMAT statement applies only to the PROC step in which it appears. 
+
+  The general form of a FORMAT statemetn is given by the following:
+    FORMAT variables format-name;
+
+  One can use a seprate FORMAT statement for each variable, or one can format several variables in a single FORMAT statement. This
+rule applies to the LABEL statement as well. Of course, when you use a LABEL or FORMAT statement within a PROC PRINT step, then the
+label or format only applies to the output from that step. If instead, we use the statement in a DATA step, then the label or the
+format will be permanently assigned to the dataset. 
+*/
+DATA f_example_data;
+  INPUT Age 1-2 Height 4-7 Weight 9-11 Fee 13-17 Gender $ 19-20 Category $ 21-22 Lastname_initial $ 23-24;
+  CARDS;
+34 1.75 150 20.65 M 1 Ab 
+32 1.92 240 56.76 M 0 Ab
+18 1.65 172 32.87 F 2 Ed
+42 1.78 173 45.09 F 2 Ed
+20 1.68 120 12.86 F 1 Ta
+58 1.75 167 23.43 M 0 Ch
+45 1.76 .   45.32 M 0 Ch
+34 1.45 180 .     . 2 Le
+23 1.85 140 28.09 F 0 Ch
+;
+RUN; 
+PROC PRINT DATA=f_example_data;
+  VAR Height Weight Fee Gender Lastname_initial;
+  WHERE Fee > 0; /* note that this excludes the missing variable */
+                 /* including the missing observation may get the DOLLAR6.2 misread due to the confusion about the period sign */
+  FORMAT HEIGHT 5.1; /* this format rounds up the height number, so 1.75 becomes 1.8 while 1.92 becomes 1.9 etc. */
+  FORMAT Fee DOLLAR6.2; /* notice that the number 6(=w) counts the dollar sign in the output(check the output) */
+  FORMAT Lastname_initial $1.; /* the format $w. works for only character values with w to be the space of the character values */
+RUN;
+PROC PRINT DATA=f_example_data; /* this is an equivalent program to the previous one */
+  VAR Height Weight Fee Gender Lastname_initial;
+  WHERE Gender NE ' '; /* here it says Fee cannot equal .(missing) */
+  FORMAT HEIGHT 5.1
+         Fee DOLLAR6.2
+		 Lastname_initial $1.;
+RUN;
+
+
+
+
+
+
+
+

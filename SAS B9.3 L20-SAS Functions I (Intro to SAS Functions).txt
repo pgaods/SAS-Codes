@@ -1,0 +1,128 @@
+/* SAS Base9.3 Lecture 20-SAS Functions I. (Intro to SAS Functions)  */
+
+
+
+/* This lecture paves the way for studying SAS functions. We give an overview of what SAS function looks like. */
+
+/*
+  SAS functions provide programming shortcuts. There are many categories of SAS functions. In this coming series of lecture we will 
+focus on how to use SAS functions to convert data, manipulate SAS date-values, and modify values of character variables etc. In 
+general, a SAS function can be specified anywhere that you would use a SAS expression, as long as the function is part of a SAS 
+statement. Some SAS functions require a specific number of arguments, whereas other functions can contain any number of arguments. 
+In addition, some SAS functions require no arguments. When a function contains more than one argument, the arguments are usually 
+separated by commas. 
+
+  The general form of a SAS function is given by:
+    function-name(arg1, arg2,...argn)
+ 
+  Here, the arguments can be variables, constants, or expressions. Note that even if the function does not require arguments, the 
+function-name must still be followed by paraentheses. However, for some functions, variable lists and arrays can also be used as 
+arguments, as long as the list or the array is preceded by the word 'OF' (English word "of"). This is a more advanced topic. We now
+first give a few common examples below. These examples can be found from the textbook 'Little SAS'. We then proceed to discuss a 
+few very important built-in SAS functions that are crucial in data processing in this coming series of lectures. These functions 
+include: PUT(), INPUT(), YEAR(), QTR(), MONTH(). DAY(), WEEKDAY(), MDY(), DATE(),TODAY(), INTCK(), INTNX(), DATDIF(), YRDIF(), 
+SCAN(), SUBSTR(), TRIM(), CATX(), INDEX(), FIND(), UPCASE(), LOWCASE(), PROPCASE(), MOD(),TRANWRD(), INT(), ROUND(), ANYALPHA(), 
+COMPRESS(), COMPBL(), FINDC(), INDEXC(), INDEXW(), CATS(), CATT(), RANGE(), LENGTH() etc. There are many more (c.f. the documents "some
+useful SAS functions" in the folder).
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80 MSGLEVEL=I;
+DATA southentrance; /* this is the first example */
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\South.dat';
+  INPUT Entrance $ PassNumber PartySize Age;
+PROC PRINT DATA = southentrance;
+  TITLE 'South Entrance Data';
+RUN;
+DATA northentrance;
+  INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\North.dat';
+  INPUT Entrance $ PassNumber PartySize Age Lot;
+PROC PRINT DATA = northentrance;
+  TITLE 'North Entrance Data';
+RUN;
+DATA Entrance;
+  SET southentrance northentrance; /* data concatenation (vertical stacking) */
+RUN;
+PROC PRINT DATA=Entrance;
+  TITLE 'Entrance Data';
+RUN; /* there are two misssing values generated after concatenation */
+DATA Entrance;
+  SET southentrance northentrance; /* data concatenation (vertical stacking) */
+    IF Lot = . THEN AmountPaid = 0;
+	  ELSE IF Lot < 3 THEN AmountPaid = 40;
+	  ELSE AmountPaid = 10;
+  avgProfit=MEAN(AmountPaid*2); /* this is the MEAN function */
+  Ratio=Age/PartySize;
+RUN;
+PROC PRINT DATA = Entrance;
+  TITLE 'Both Entrances';
+RUN;
+DATA contest; /* this is the second example */
+  INPUT ID $ Year $ Exam1 Exam2 Exam3 Final; 
+  CARDS;
+01 Fresh 45.5 56.5 100.0 100.0
+02 Sophom 45.5 60.0 100.0 90
+03 Junior 100 100 100 50
+04 Senior 89 80.5 60 98
+05 Senior 98 98 67.5 67
+06 Junior 89 76 32 88.5
+;
+RUN;
+DATA contest; 
+  SET contest (DROP=ID);
+    AvgScore = MEAN(Exam1, Exam2, Exam3);
+      /* the target variable "AvgScore" is obtained by the mean of the non-missing arguments */ 
+      /* this differs from simply adding the arguments together and dividing which may return a missing value */
+	Weighted_avg=0.1*MEAN(OF Exam1-Exam3); /* this is where the English keyword 'of' kicks in */
+    Year = UPCASE(Year); /*The transforms all letters into uppercase */
+                        /* SAS is only case-sensitive when it comes to variable value */
+    Logscr1 = LOG(Exam1); /* this function takes logs with e-based elementwise */
+    Logscr1_10 = LOG10(Exam1); /* log with 10-base */
+    Summation = SUM(Exam1, Exam2, Exam3, Final);  /* This does the summation elementwise */
+RUN;
+PROC PRINT DATA=contest;
+ TITLE 'Contest';
+RUN;
+
+/*
+  One additional note before we move on to the next section. There are many cool SAS functions that are diretly linked to the powerful
+SASHELP library. Here we will study a few cool examples-ZIPCITY(), ZIPNAME(), ZIPSTATE() and ZIPCITYDISTANCE(). They share the same
+kind of argument (the 5-digit zipcode) but they return different values. The ZIPCITY() function maps the set of zip codes in the US 
+into city names (in proper case) and state abbreviations (in upper case). ZIPNAME() returns the complete state name in upper case, and
+ZIPSTATE() returns the state abbreviation names. Lastly, the ZIPCITYDISTANCE() function returns the geodetic distance between two zip 
+code locations (measured in miles). The centroid of each ZIP code is used in the calculation. The SASHELP.ZIPCODE data set must be 
+present when you use this function (http://support.sas.com/documentation/cdl/en/lrdict/64316/HTML/default/viewer.htm#a003113156.htm.).
+If you remove the data set, then ZIPCITYDISTANCE() will return unexpected results. You can download the latest version of the file
+SASHELP.ZIPCODE from the SAS external Web site at any time (http://support.sas.com/rnd/datavisualization/mapsonline/html/misc.html.).
+Select Zipcode Dataset from the Name column to begin the download process.
+*/
+DATA Zip_cities;
+  city1=ZIPCITY(90263);
+  city2=ZIPCITY(60115);
+  city3=ZIPCITY(60640);
+RUN; 
+DATA Zip_names;
+  State1=ZIPNAME(90263);
+  State2=ZIPNAME(60115);
+  State3=ZIPNAME(60640);
+RUN;
+DATA Zip_states;
+  State1_=ZIPSTATE(90263);
+  State2_=ZIPSTATE(60115);
+  State3_=ZIPSTATE(60640);
+RUN;
+DATA Zip_Distance;
+  D1=ZIPCITYDISTANCE(60115, 60640);
+  PUT D1;
+PROC PRINT DATA=Zip_cities;
+  TITLE 'ZIPCITY()';
+RUN;
+PROC PRINT DATA=Zip_names;
+  TITLE 'ZIPNAME()';
+RUN;
+PROC PRINT DATA=Zip_states;
+  TITLE 'ZIPSTATE()';
+RUN;
+PROC PRINT DATA=Zip_Distance;
+  TITLE 'ZIPCITYDISTANCE()';
+RUN;

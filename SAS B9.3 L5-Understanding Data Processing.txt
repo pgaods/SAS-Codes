@@ -1,0 +1,51 @@
+
+/* SAS Base9.3 Lecture 5-Understanding Data Processing */
+
+
+
+/* This lecture studies how SAS creates datasets and reads data. */
+
+/* 
+  When the DATA step in SAS is submitted, SAS processes it in two phases. Here is the flow chart of data processing:
+    1. Compilation Phase:
+       1). An input buffer is created to hold a record from the external file. It is created when a raw dataset is read, not when a 
+           SAS dataset is read. 
+       2). The program data vector is created. A program data vector is an area of memory in the program where SAS builds a dataset, 
+           one observation at a time. It contains two automatic variables that can be used for processing but which are not written 
+           to the dataset: _N_(counts the number of times that the DATAstep begins to execute), and _ERROR_(whose default value is
+           0). SAS now checks the syntax error in the program.
+       3). When the INPUT statement is compiled, a slot is added to the program data vector for each variable in the new dataset.
+           Usually, variable attributes such as length and type are deteremined the first time a variable is encountered. Any 
+           variables that are created with an assignment statement in the DATA step are also added to the program data vector.
+       4). At the bottom of the DATA step, the compilation phase is complete, and the descriptor of the new SAS dataset is created.
+           The descriptor consists of the name of the dataset, the number of observations and variables, and variables' attributes.   
+    2. Excecution Phase:
+       1). At the beginning of the execution phase, the value of _N_ is 1 and _ERROR_ is 0. The remaining variables are initialized 
+           to missing. 
+       2). If there is an INFILE statement, then the that statement identifies the location of the raw data.
+       3). When an INPUT statement begins to read data values from a record that is held in the input buffer, it uses an input 
+           pointer to keep track of its position. The input pointer starts thus at column 1 of hte first record, unless otherwise 
+           directed. As the INPUT statement executes, the raw data in each column are read and assigned to the program data vector.
+       4). At the end of the DATA step, data are written out to the output dataset as the first observation. Then the value of _N_
+           is set to be 2 and control returns to the top of the DATA step. Finally, the variable values in the program data vector 
+           are reset to missing. 
+       5). Now the iteration of this process starts. So the input pointer rests in column 1 of the second observation and continues
+           with the process. 
+       6). The Execution phase continues in this manner till the end-of-file marker is reached in the raw data file. Then the SAS
+           log is written out. 
+   Here are a few caveats:
+     1. When reading variables from a raw dataset, SAS sets the values of each variables in the DATA step to missing at the very
+        beginning of each cycle of execution, with these statements:
+        1). variables named in a RETAIN statement
+        2). variables created in a SUM statement
+        3). data elements in a _TEMPORARY_ array
+        4). any variables that are created with options in the FILE or INFILE statements
+        5). automatic variables
+        (To see how these special cases work, one can refer the online SAS documentation for help). 
+     2. In contrast, when reading variables from a SAS dataset, SAS sets the values to missing only before the first cycle 
+        of execution of the DATA step. Therefore, the variables retain their values until new values become available (for example, 
+        thru an assignment statement or through the next execution of a SET or MERGE statement. Variables that are cretaed with the
+        options in the SET or MERGE statements also retain their values from one cycle of execution to the next. 
+*/
+
+

@@ -1,0 +1,58 @@
+/* SAS Base9.3 Lecture 17-Data Manipulation V. (DO-END statements) */
+
+
+
+/* This lecture studies techniques of data manipulation. We focuse studying the DO-END statements. */
+
+/*
+  To manipulate variables, sometimes we need to impose conditions. This can be done in many ways in SAS. Sometimes, one need to 
+execute a group of statements altogether as a unit. And the way to achieve this is to use the DO-END group statement.
+
+  The general form of the DO-END statement is given by the following :
+    DO;
+      sas statement(s);
+    END;
+
+  Above, the DO statement begins the DO-group processing. You can use the DO-END statement in the IF-THEN-ELSE statements and the
+SELECT-END statements to perform many statements as part of the conditoinal action. 
+*/
+ODS HTML CLOSE;
+ODS LISTING; 
+OPTIONS NODATE PAGESIZE=100 LINESIZE=80;
+DATA mentaldisorder;
+ INFILE '\\sscwin\dfsroot\users\tgao4\Desktop\mentaldisorder.txt';
+ INPUT ID $ Name $ RestHr MaxHr RecHr TimeMin TimeSec Tolerance $;
+RUN;
+DATA mentaldisorder;
+ SET mentaldisorder;
+ TotalTime=(TimeMin*60)+TimeSec;
+ SumSec+TotalTime;
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+DATA mentaldisorder (DROP= RestHr MaxHr RecHr TimeMin TimeSec);
+  SET mentaldisorder;
+  LENGTH Category $ 15;
+  LENGTH message $ 8;
+  IF TotalTime<=2000 THEN 
+                         DO;
+						   Category='Deprived Rest';
+						   message='short';
+						 END;
+    ELSE IF TotalTime>2000 AND TotalTime<=3000 THEN
+                                                   DO;
+                                                     Category='Decent Rest';
+												     message='healthy';
+												   END;
+    ELSE 
+	    DO;
+           Category='Sufficient Rest';  
+           message='long'; 
+		END;											
+RUN;
+PROC PRINT DATA=mentaldisorder;
+RUN;
+/*
+  We will learn more about the DO-END statements when we study DO loops. In the meantime, one should try to avoid using the DO-END
+statement in the SELECT END statement. Usually, the IF-THEN-ELSE statement is easier to debug if combined with the DO-END stateent.
+*/
